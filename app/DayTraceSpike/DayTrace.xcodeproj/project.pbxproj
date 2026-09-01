@@ -1,0 +1,559 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 71;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* DayTraceApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* DayTraceApp.swift */; };
+		A10000000000000000000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* AppDelegate.swift */; };
+		A10000000000000000000003 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* ContentView.swift */; };
+		A10000000000000000000004 /* DayTraceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* DayTraceViewModel.swift */; };
+		A10000000000000000000005 /* AppIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* AppIdentity.swift */; };
+		A10000000000000000000006 /* DomainInterval.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* DomainInterval.swift */; };
+		A10000000000000000000017 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* AppLanguage.swift */; };
+		A10000000000000000000007 /* KeyClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* KeyClassifier.swift */; };
+		A10000000000000000000008 /* ForegroundTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* ForegroundTracker.swift */; };
+		A10000000000000000000009 /* TypingCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* TypingCounter.swift */; };
+		A1000000000000000000000A /* DomainTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* DomainTracker.swift */; };
+		A1000000000000000000000B /* UnixSocketBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000B /* UnixSocketBridge.swift */; };
+		A1000000000000000000000C /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* main.swift */; };
+		A1000000000000000000000D /* DayTraceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* DayTraceTests.swift */; };
+		A1000000000000000000000E /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* AppKit.framework */; };
+		A1000000000000000000000F /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* SwiftUI.framework */; };
+		A10000000000000000000010 /* Combine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* Combine.framework */; };
+		A10000000000000000000011 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* CoreGraphics.framework */; };
+		A10000000000000000000012 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* XCTest.framework */; };
+		A10000000000000000000013 /* DesignTokens.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* DesignTokens.swift */; };
+		A10000000000000000000014 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* Localizable.xcstrings */; };
+		A10000000000000000000015 /* IOKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* IOKit.framework */; };
+		A10000000000000000000016 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* Assets.xcassets */; };
+		A1000000000000000000001D /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* DashboardView.swift */; };
+		A1000000000000000000001E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* SettingsView.swift */; };
+		A1000000000000000000001F /* UsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002A /* UsageCard.swift */; };
+		A10000000000000000000020 /* UsageRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002B /* UsageRow.swift */; };
+		A10000000000000000000021 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002C /* StatusBadge.swift */; };
+		A10000000000000000000022 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002D /* SectionHeader.swift */; };
+		A10000000000000000000023 /* TypingActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002E /* TypingActivityView.swift */; };
+		A10000000000000000000024 /* DurationFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002F /* DurationFormatting.swift */; };
+		A10000000000000000000025 /* UsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000030 /* UsageStore.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A30000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A90000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A90000000000000000000011;
+			remoteInfo = DayTrace;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* DayTraceApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTraceApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* DayTraceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTraceViewModel.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* AppIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIdentity.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* DomainInterval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainInterval.swift; sourceTree = "<group>"; };
+		A20000000000000000000027 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguage.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* KeyClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyClassifier.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* ForegroundTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForegroundTracker.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* TypingCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingCounter.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* DomainTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DomainTracker.swift; sourceTree = "<group>"; };
+		A2000000000000000000000B /* UnixSocketBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnixSocketBridge.swift; sourceTree = "<group>"; };
+		A2000000000000000000000C /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		A2000000000000000000000D /* DayTraceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTraceTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000000E /* DesignTokens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignTokens.swift; sourceTree = "<group>"; };
+		A2000000000000000000000F /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		A20000000000000000000010 /* DayTrace.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DayTrace.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000011 /* DayTraceNativeHost */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = DayTraceNativeHost; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000012 /* DayTraceTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DayTraceTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000020 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		A20000000000000000000021 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		A20000000000000000000022 /* Combine.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Combine.framework; path = System/Library/Frameworks/Combine.framework; sourceTree = SDKROOT; };
+		A20000000000000000000023 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		A20000000000000000000024 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = Library/Frameworks/XCTest.framework; sourceTree = DEVELOPER_DIR; };
+		A20000000000000000000025 /* IOKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = IOKit.framework; path = System/Library/Frameworks/IOKit.framework; sourceTree = SDKROOT; };
+		A20000000000000000000026 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A20000000000000000000028 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		A20000000000000000000029 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002A /* UsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCard.swift; sourceTree = "<group>"; };
+		A2000000000000000000002B /* UsageRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageRow.swift; sourceTree = "<group>"; };
+		A2000000000000000000002C /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBadge.swift; sourceTree = "<group>"; };
+		A2000000000000000000002D /* SectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionHeader.swift; sourceTree = "<group>"; };
+		A2000000000000000000002E /* TypingActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TypingActivityView.swift; sourceTree = "<group>"; };
+		A2000000000000000000002F /* DurationFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurationFormatting.swift; sourceTree = "<group>"; };
+		A20000000000000000000030 /* UsageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageStore.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A40000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000E /* AppKit.framework in Frameworks */,
+				A1000000000000000000000F /* SwiftUI.framework in Frameworks */,
+				A10000000000000000000010 /* Combine.framework in Frameworks */,
+				A10000000000000000000011 /* CoreGraphics.framework in Frameworks */,
+				A10000000000000000000015 /* IOKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A40000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000012 /* XCTest.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A50000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A50000000000000000000002 /* DayTrace */,
+				A50000000000000000000003 /* Products */,
+				A50000000000000000000004 /* Frameworks */,
+				A50000000000000000000005 /* DayTraceTests */,
+				A50000000000000000000006 /* DayTraceNativeHost */,
+			);
+			sourceTree = "<group>";
+		};
+		A50000000000000000000002 /* DayTrace */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* DayTraceApp.swift */,
+				A20000000000000000000002 /* AppDelegate.swift */,
+				A50000000000000000000010 /* Models */,
+				A50000000000000000000011 /* Services */,
+				A50000000000000000000012 /* IPC */,
+				A50000000000000000000013 /* Views */,
+				A50000000000000000000014 /* Resources */,
+				A20000000000000000000026 /* Assets.xcassets */,
+			);
+			path = DayTraceSpike;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000010 /* DayTrace.app */,
+				A20000000000000000000011 /* DayTraceNativeHost */,
+				A20000000000000000000012 /* DayTraceTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000004 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000020 /* AppKit.framework */,
+				A20000000000000000000021 /* SwiftUI.framework */,
+				A20000000000000000000022 /* Combine.framework */,
+				A20000000000000000000023 /* CoreGraphics.framework */,
+				A20000000000000000000024 /* XCTest.framework */,
+				A20000000000000000000025 /* IOKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000005 /* DayTraceTests */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000D /* DayTraceTests.swift */,
+			);
+			path = DayTraceSpikeTests;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000006 /* DayTraceNativeHost */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000C /* main.swift */,
+			);
+			path = DayTraceNativeHost;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000010 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000005 /* AppIdentity.swift */,
+				A20000000000000000000006 /* DomainInterval.swift */,
+				A20000000000000000000027 /* AppLanguage.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000011 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000007 /* KeyClassifier.swift */,
+				A20000000000000000000008 /* ForegroundTracker.swift */,
+				A20000000000000000000009 /* TypingCounter.swift */,
+				A2000000000000000000000A /* DomainTracker.swift */,
+				A2000000000000000000002F /* DurationFormatting.swift */,
+				A20000000000000000000030 /* UsageStore.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000012 /* IPC */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000B /* UnixSocketBridge.swift */,
+			);
+			path = IPC;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000013 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000003 /* ContentView.swift */,
+				A20000000000000000000028 /* DashboardView.swift */,
+				A20000000000000000000029 /* SettingsView.swift */,
+				A20000000000000000000004 /* DayTraceViewModel.swift */,
+				A2000000000000000000000E /* DesignTokens.swift */,
+				A50000000000000000000015 /* Components */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000015 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000002A /* UsageCard.swift */,
+				A2000000000000000000002B /* UsageRow.swift */,
+				A2000000000000000000002C /* StatusBadge.swift */,
+				A2000000000000000000002D /* SectionHeader.swift */,
+				A2000000000000000000002E /* TypingActivityView.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		A50000000000000000000014 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000F /* Localizable.xcstrings */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A90000000000000000000011 /* DayTrace */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000000000000000000011 /* Build configuration list for PBXNativeTarget "DayTrace" */;
+			buildPhases = (
+				A40000000000000000000001 /* Frameworks */,
+				A70000000000000000000001 /* Resources */,
+				A70000000000000000000002 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DayTrace;
+			productName = DayTrace;
+			productReference = A20000000000000000000010 /* DayTrace.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A90000000000000000000012 /* DayTraceNativeHost */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000000000000000000012 /* Build configuration list for PBXNativeTarget "DayTraceNativeHost" */;
+			buildPhases = (
+				A70000000000000000000003 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DayTraceNativeHost;
+			productName = DayTraceNativeHost;
+			productReference = A20000000000000000000011 /* DayTraceNativeHost */;
+			productType = "com.apple.product-type.tool";
+		};
+		A90000000000000000000013 /* DayTraceTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000000000000000000013 /* Build configuration list for PBXNativeTarget "DayTraceTests" */;
+			buildPhases = (
+				A40000000000000000000002 /* Frameworks */,
+				A70000000000000000000004 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A60000000000000000000001 /* PBXTargetDependency */,
+			);
+			name = DayTraceTests;
+			productName = DayTraceTests;
+			productReference = A20000000000000000000012 /* DayTraceTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A90000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 2660;
+				ORGANIZATIONNAME = DayTrace;
+				TargetAttributes = {
+					A90000000000000000000011 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					A90000000000000000000012 = {
+						CreatedOnToolsVersion = 26.6;
+					};
+					A90000000000000000000013 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = A90000000000000000000011;
+					};
+				};
+			};
+			buildConfigurationList = A80000000000000000000001 /* Build configuration list for PBXProject "DayTrace" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = "zh-Hans";
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				"zh-Hans",
+			);
+			mainGroup = A50000000000000000000001;
+			productRefGroup = A50000000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A90000000000000000000011 /* DayTrace */,
+				A90000000000000000000012 /* DayTraceNativeHost */,
+				A90000000000000000000013 /* DayTraceTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A70000000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000014 /* Localizable.xcstrings in Resources */,
+				A10000000000000000000016 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A70000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* DayTraceApp.swift in Sources */,
+				A10000000000000000000002 /* AppDelegate.swift in Sources */,
+				A10000000000000000000003 /* ContentView.swift in Sources */,
+				A10000000000000000000004 /* DayTraceViewModel.swift in Sources */,
+				A10000000000000000000005 /* AppIdentity.swift in Sources */,
+				A10000000000000000000006 /* DomainInterval.swift in Sources */,
+				A10000000000000000000017 /* AppLanguage.swift in Sources */,
+				A10000000000000000000007 /* KeyClassifier.swift in Sources */,
+				A10000000000000000000008 /* ForegroundTracker.swift in Sources */,
+				A10000000000000000000009 /* TypingCounter.swift in Sources */,
+				A1000000000000000000000A /* DomainTracker.swift in Sources */,
+				A1000000000000000000000B /* UnixSocketBridge.swift in Sources */,
+				A10000000000000000000013 /* DesignTokens.swift in Sources */,
+				A1000000000000000000001D /* DashboardView.swift in Sources */,
+				A1000000000000000000001E /* SettingsView.swift in Sources */,
+				A1000000000000000000001F /* UsageCard.swift in Sources */,
+				A10000000000000000000020 /* UsageRow.swift in Sources */,
+				A10000000000000000000021 /* StatusBadge.swift in Sources */,
+				A10000000000000000000022 /* SectionHeader.swift in Sources */,
+				A10000000000000000000023 /* TypingActivityView.swift in Sources */,
+				A10000000000000000000024 /* DurationFormatting.swift in Sources */,
+				A10000000000000000000025 /* UsageStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000003 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000C /* main.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A70000000000000000000004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000000000000000000000D /* DayTraceTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A60000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A90000000000000000000011 /* DayTrace */;
+			targetProxy = A30000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A81000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A81000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A81000000000000000000011 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = S8D63V4T8H;
+				ENABLE_TESTABILITY = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				INFOPLIST_KEY_CFBundleDisplayName = DayTrace;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daytrace.spike;
+				PRODUCT_NAME = DayTrace;
+				PRODUCT_MODULE_NAME = DayTrace;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A81000000000000000000012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = S8D63V4T8H;
+				GENERATE_INFOPLIST_FILE = YES;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				INFOPLIST_KEY_CFBundleDisplayName = DayTrace;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daytrace.spike;
+				PRODUCT_NAME = DayTrace;
+				PRODUCT_MODULE_NAME = DayTrace;
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A81000000000000000000013 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_REQUIRED = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_NAME = DayTraceNativeHost;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A81000000000000000000014 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_REQUIRED = NO;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_NAME = DayTraceNativeHost;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A81000000000000000000015 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_REQUIRED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daytrace.spike.tests;
+				PRODUCT_NAME = DayTraceTests;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DayTrace.app/Contents/MacOS/DayTrace";
+			};
+			name = Debug;
+		};
+		A81000000000000000000016 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGNING_REQUIRED = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.daytrace.spike.tests;
+				PRODUCT_NAME = DayTraceTests;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DayTrace.app/Contents/MacOS/DayTrace";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A80000000000000000000001 /* Build configuration list for PBXProject "DayTrace" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A81000000000000000000001 /* Debug */,
+				A81000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000000000000000000011 /* Build configuration list for PBXNativeTarget "DayTrace" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A81000000000000000000011 /* Debug */,
+				A81000000000000000000012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000000000000000000012 /* Build configuration list for PBXNativeTarget "DayTraceNativeHost" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A81000000000000000000013 /* Debug */,
+				A81000000000000000000014 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000000000000000000013 /* Build configuration list for PBXNativeTarget "DayTraceTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A81000000000000000000015 /* Debug */,
+				A81000000000000000000016 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A90000000000000000000001 /* Project object */;
+}

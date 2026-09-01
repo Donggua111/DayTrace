@@ -3,8 +3,12 @@
 ## Current status
 
 **Product Discovery: COMPLETE**
+**Technical Spike 01: COMPLETE**
+**Internal Beta Foundation Sprint 1A/1B: COMPLETE**
+**Internal Beta Sprint 2B Core Persistence: STABILIZED**
+**F-008 Event Tap Lifecycle: IMPLEMENTED — REAL-MAC REGRESSION PASSED**
 
-Next gate: **Technical Spike**
+Next gate: **Independent re-review complete; timezone validation remains deferred**
 
 ---
 
@@ -13,60 +17,77 @@ Next gate: **Technical Spike**
 Goal: prove the highest-risk technical capabilities before freezing the production architecture.
 
 ### Spike A — macOS foreground application tracking
-- [ ] Detect frontmost application changes
-- [ ] Capture bundle identifier and display name
-- [ ] Measure foreground intervals without one-second polling
-- [ ] Exclude sleep intervals
-- [ ] Exclude locked-session intervals
-- [ ] Verify close-window vs quit behavior can support continuous tracking
+- [x] Detect frontmost application changes
+- [x] Capture bundle identifier and display name
+- [x] Measure foreground intervals without one-second polling
+- [x] Exclude sleep intervals
+- [x] Exclude locked-session intervals
+- [x] Verify close-window vs quit behavior can support continuous tracking
 
 ### Spike B — privacy-preserving global typing count
-- [ ] Receive global keyboard events with required macOS permissions
-- [ ] Count qualifying typing keystrokes
-- [ ] Ignore modifier/system-control keys
-- [ ] Verify no typed content is persisted
-- [ ] Verify an exact 100-key manual test
-- [ ] Record count against the currently foreground app
-- [ ] Measure rough CPU/memory impact while idle and typing
+- [x] Receive global keyboard events with required macOS permissions
+- [x] Count qualifying typing keystrokes
+- [x] Ignore modifier/system-control keys
+- [x] Verify no typed content is persisted
+- [x] Verify an exact 100-key manual test
+- [x] Record count against the currently foreground app
+- [x] Measure rough CPU/memory impact while idle and typing
 
 ### Spike C — Chrome active-domain sensing and local communication
-- [ ] Load a local unpacked Chrome extension
-- [ ] Identify the active tab domain
-- [ ] Do not persist full URL/title/content
-- [ ] Communicate domain state to the local DayTrace host
-- [ ] Verify domain time can remain nested within Chrome foreground time
-- [ ] Avoid a public-network backend
+- [x] Load a local unpacked Chrome extension
+- [x] Identify the active tab domain
+- [x] Do not persist full URL/title/content
+- [x] Communicate domain state to the local DayTrace host
+- [x] Verify domain time can remain nested within Chrome foreground time
+- [x] Avoid a public-network backend
 
 ### Spike exit gate
-Do not proceed to full feature implementation until all three spikes are either:
-- validated, or
-- documented with a deliberate fallback decision.
+All three spikes are validated and their current boundaries are recorded in
+`docs/engineering/ARCHITECTURE.md`.
 
 After the spike:
-- [ ] Write/update `docs/engineering/ARCHITECTURE.md`
-- [ ] Convert validated findings into production architecture
-- [ ] Remove throwaway spike-only code if applicable
-- [ ] Define Internal Beta tasks
+- [x] Write/update `docs/engineering/ARCHITECTURE.md`
+- [x] Convert validated findings into the Internal Beta foundation architecture
+- [x] Remove generated build/user-state artifacts from the source baseline
+- [x] Define Internal Beta tasks
+
+## Stage 1.5 — Internal Beta Foundation
+
+Completed in Sprint 1A/1B:
+
+- formal DayTrace Xcode project, target, scheme, module, and test names
+- stable `com.daytrace.spike` App identity retained for TCC continuity
+- stable `com.daytrace.spike` Native Messaging host identity retained
+- source baseline prepared for Git tracking
+- generated artifacts excluded from the repository
+- architecture and testing documentation synchronized
+
+This foundation stage does not add persistence, history, categories, account,
+cloud, export, menu bar, launch-at-login, or other new product capabilities.
 
 ---
 
-## Stage 2 — Internal Beta
+## Stage 2 — Internal Beta product work
 
-Planned after the Technical Spike passes.
+Sprint 2B establishes the first local persistence baseline without adding a
+history-facing product surface.
 
-Expected scope:
+Completed in the current persistence fast track:
 - foreground app usage collector
 - sleep/lock handling
 - pause/resume
 - local persistence
 - typing analytics
 - Chrome domain analytics
+- second-precision local-day aggregation
+- periodic and termination checkpointing
+- restart recovery and idempotent upserts
+- Event Tap RunLoop-owned cleanup and relaunch safety
+
+Remaining Internal Beta work, intentionally not started here:
 - menu bar
-- main dashboard
-- bilingual localization
+- daily history UI
 - category mappings
-- daily history
-- settings
 - launch at login
 - export/delete data
 

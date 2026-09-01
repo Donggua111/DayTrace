@@ -4,28 +4,28 @@ DayTrace is a local-first macOS activity analytics application for tracking how 
 
 ## Current stage
 
-**Product Discovery complete → Technical Spike next**
+**Technical Spike complete → Internal Beta Foundation baseline**
 
-The product requirements are frozen enough to begin technical validation. Production architecture is intentionally **not** frozen until the high-risk technical capabilities have been validated.
+Technical Spike 01 has validated the first implementation boundary. Sprint 1A
+and 1B establish the first source-controlled, formally named engineering
+baseline without changing the validated tracking or communication behavior.
 
-## V1 direction
+## Validated foundation
 
 - macOS only
 - Native macOS app
-- Dock presence + menu bar presence while running
-- Optional Launch at Login
-- Local-only storage
-- No account system
-- No cloud sync
 - App foreground usage time
 - Chrome → website/domain breakdown
-- Daily typing analytics
-- Estimated Chinese character count
-- Estimated English word count
-- Raw typing keystroke count as lower-level metric
-- Categories such as AI / Development / Study
+- Privacy-preserving aggregate typing keystrokes
+- Chrome Native Messaging over a user-only Unix domain socket
+- No typed content, full URL, title, or page content storage
+- Dashboard, native Settings scene, localization, and AppIcon
 - Simplified Chinese + English UI, freely switchable
 - Pause / Resume tracking
+
+Core Data + SQLite local persistence is part of the implemented Internal Beta
+core. History, categories, launch at login, export, delete-data flows, and
+other Internal Beta product work remain future scope.
 
 ## Repository structure
 
@@ -41,11 +41,19 @@ DayTrace/
 │       ├── ROADMAP.md
 │       └── TESTING.md
 ├── prompts/
-│   └── TECHNICAL_SPIKE_01.md
-├── app/                    # Created by Codex during the spike
-├── extension/              # Created only when needed by the spike
+│   └── TECHNICAL_SPIKE_01.md   # Historical spike brief
+├── app/
+│   └── DayTraceSpike/           # Transitional physical path; formal Xcode identity is DayTrace
+│       ├── DayTrace.xcodeproj
+│       ├── DayTraceSpike/       # Existing source directory; no broad directory move in Sprint 1
+│       ├── DayTraceNativeHost/
+│       └── DayTraceSpikeTests/
+├── extension/
 │   └── chrome/
-└── scripts/                # Created only when useful
+├── scripts/
+│   ├── design/
+│   └── spike/
+└── design/
 ```
 
 ## Repository rules
@@ -56,3 +64,36 @@ DayTrace/
 - Do not create speculative folders that have no files/use yet.
 - Do not add cloud, authentication, payment, telemetry, or public-network services unless a future product decision explicitly requires them.
 - All user-facing UI strings must be localizable from the beginning.
+- Do not track `DerivedData`, `xcuserdata`, `.xcuserstate`, `.xcresult`, build
+  products, or `.DS_Store` files.
+
+## Stable development identities
+
+The current development identity is intentionally stable while the code-side
+names are formalized:
+
+```text
+App bundle ID: com.daytrace.spike
+Native Messaging host: com.daytrace.spike
+```
+
+These values must not be changed casually because they are connected to macOS
+Input Monitoring/TCC identity and Chrome Native Messaging discovery.
+
+## Build and test
+
+For automated unsigned validation:
+
+```text
+xcodebuild -project app/DayTraceSpike/DayTrace.xcodeproj \
+  -scheme DayTrace -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+
+xcodebuild -project app/DayTraceSpike/DayTrace.xcodeproj \
+  -scheme DayTrace -configuration Debug \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
+```
+
+Manual Input Monitoring verification must use an Apple Development-signed
+Xcode Run build. An unsigned automation artifact is not a valid permission
+runtime.

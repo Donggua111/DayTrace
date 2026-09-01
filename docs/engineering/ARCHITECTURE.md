@@ -1,0 +1,258 @@
+# DayTrace Architecture
+
+Status: Internal Beta Sprint 2B Core Persistence baseline
+Scope: validated tracking capabilities plus the first local persistence boundary
+
+This document records the architecture currently allowed to move forward into
+Internal Beta validation. Sprint 2B adds local daily persistence only; it does
+not authorize History UI, charts, categories, cloud, account, export,
+launch-at-login, or other unimplemented product work.
+
+## Runtime topology
+
+```text
+DayTrace macOS App
+├── ForegroundTracker
+├── TypingCounter
+├── DomainTracker
+├── UsageStore
+├── UnixSocketBridge
+└── SwiftUI Dashboard + native Settings scene
+
+Chrome Extension
+  → Chrome Native Messaging Host (stdio)
+  → user-only Unix domain socket
+  → DayTrace UnixSocketBridge
+  → DomainTracker
+```
+
+The topology is local-only. There is no TCP listener, LAN listener, public
+backend, account service, cloud sync, or persistent message queue.
+
+## Local persistence
+
+`UsageStore` is the single persistence boundary for the current product data.
+It receives aggregate foreground intervals, sanitized Chrome domain intervals,
+and aggregate typing categories. It uses a native Core Data model (the app
+continues to support macOS 13, so SwiftData is not used here) backed by a
+user-level SQLite store under the DayTrace Application Support directory. The
+runtime trackers remain responsible for event handling; they do not write
+database records directly.
+
+The persisted daily records are:
+
+- `AppUsageDailyRecord`: local day key, app identity, and seconds.
+- `WebsiteUsageDailyRecord`: local day key, Chrome identity, sanitized domain,
+  and seconds.
+- `TypingDailyRecord`: local day key, metric version, category counts, typing
+  sessions, and aggregate active typing seconds.
+- `TypingAppDailyRecord`: local day key, app identity, and aggregate typing
+  category counts.
+
+All durations are stored as `Double` seconds. Intervals crossing a local
+midnight are split into the relevant local calendar day keys. Website time is
+stored separately and never added to total app usage.
+
+Checkpoints run periodically while the app is active and during app
+termination. Upserts are idempotent, so repeated checkpoints do not duplicate
+intervals. A failed save rolls back only the pending Core Data transaction;
+runtime aggregates and interval progress remain available for a later retry.
+The store reports this recoverable state as degraded rather than blocking
+tracking. If the store cannot be opened, the runtime trackers remain usable and
+the error is surfaced through the store status; tracking does not crash or
+silently substitute a second persistence path.
+
+The daily record uniqueness keys are:
+
+- App: `dateKey + bundleIdentifier`.
+- Website: `dateKey + browserBundleIdentifier + domain`.
+- Typing: `dateKey + metricVersion`.
+- Per-app typing: `dateKey + bundleIdentifier + metricVersion`.
+
+On load/checkpoint, legacy duplicate rows are normalized to one deterministic
+canonical row using the greatest aggregate value. They are never blindly
+summed, which prevents a repeated or partially migrated row from inflating
+usage.
+
+## Stable identities
+
+These values are intentionally frozen for the current Internal Beta foundation:
+
+```text
+App bundle ID: com.daytrace.spike
+Native Messaging host name: com.daytrace.spike
+Native Messaging type: stdio
+```
+
+The App bundle ID must remain stable because it is associated with macOS Input
+Monitoring/TCC identity. The Native Messaging host name must remain stable
+because Chrome discovers the host by that exact name.
+
+The Chrome extension ID is external runtime configuration and is not changed by
+the source baseline work. Native Messaging has one source of truth for this
+spike: `extension/chrome/service-worker.js` requests `com.daytrace.spike`, and
+the installed user-level manifest must use the same name, filename, and
+allowed origin for the currently loaded unpacked extension.
+
+## Foreground usage
+
+`ForegroundTracker` is the source of primary usage time.
+
+- The frontmost App is identified by a stable bundle identifier. If macOS does
+  not provide one, the tracker uses an `unknown-process-<runtime>-pid-<pid>`
+  fallback that is stable only within that tracker runtime. A later launch
+  therefore cannot merge unrelated processes merely because a PID was reused.
+  Display name is presentation metadata and may change without splitting the
+  same identified app's aggregate.
+- Foreground intervals are event-driven and non-overlapping.
+- Sleep, lock, and paused intervals are excluded.
+- The loginwindow identity is never recorded as a normal app.
+- App usage is the parent usage layer.
+- Website usage never increases total Mac usage.
+
+The Internal Beta foundation does not change this definition. A wake event is
+not treated as an unlock: if the interactive session is still inactive, the
+tracker remains locked and does not start an interval. A session-active or
+screen-unlocked event performs a fresh frontmost-app query before resuming.
+
+The persistence layer only accepts closed intervals and a current interval
+snapshot at checkpoint time. Lock, sleep, and pause transitions close the
+active interval before persistence can consume it; unlocking or wake resumes a
+fresh interval.
+
+When macOS reports a system time-zone, calendar-day, or system-clock change,
+the active interval is closed at the event timestamp and the transition is
+checkpointed before the UsageStore adopts the new calendar. Tracking then
+re-anchors at the current frontmost app if the session is awake and active.
+Previously stored aggregate durations are not re-counted or rewritten merely
+because the system calendar changed.
+
+Daily records use the local calendar day observed when the usage was recorded.
+The stored `dateKey` is historical and immutable; it has no retroactive
+reinterpretation when the system time zone changes. A time-zone change closes
+the old interval and starts a new interval under the new local calendar.
+
+## Typing privacy boundary
+
+`TypingCounter` listens through a listen-only Core Graphics event tap.
+
+The Event Tap lifecycle is owned by a dedicated serial event queue and the
+RunLoop created on that queue. Creation, source registration, re-enable after
+timeout, source removal, and Mach-port invalidation all happen on that same
+RunLoop. Callers do not remove the source from their own RunLoop; `stop()` only
+marks the lifecycle as stopping and schedules cleanup with
+`CFRunLoopPerformBlock` followed by `CFRunLoopWakeUp`. This prevents a live
+`CFRunLoopRun()` from being stranded behind work queued to the same dispatch
+queue and avoids cross-thread access to the Event Tap objects.
+
+Lifecycle states are coordinated separately from the RunLoop-owned objects:
+
+```text
+stopped → starting → running → stopping → stopped
+```
+
+If a stop request arrives while creation is still in progress, the creation
+path observes the stopping state and cleans up the newly created tap before
+entering the run loop. A start request received while stopping is retained as
+one pending restart and runs only after the old tap has been invalidated. The
+callback retains no ownership of the counter; the active event-queue run-loop
+block keeps the counter alive until cleanup has invalidated the tap.
+
+Application termination is ordered as: stop accepting new typing events,
+preserve the aggregate state already accepted, perform the final UsageStore
+checkpoint, then stop the Unix socket and finish Event Tap cleanup on its own
+run loop. This coordination is bounded and never waits with a sleep, busy
+loop, or indefinite retry.
+
+The processing boundary is:
+
+```text
+keyDown
+  → transient classification
+  → aggregate count
+  → discard event detail
+```
+
+DayTrace does not store or reconstruct typed characters, Unicode text, key
+sequences, text buffers, or keyboard history. Input Monitoring is used for
+listen-only counting; Accessibility, Full Disk Access, and Screen Recording are
+not substitutes or additional requirements.
+
+## Chrome website attribution
+
+The extension sends only a sanitized hostname token or an approved internal
+state such as `Browser Internal`, `Local File`, or `Unknown`.
+
+The native boundary rejects payloads that contain unexpected fields and does not
+accept full URL, path, query, title, or page-content data. Website time is
+counted only while Chrome is the foreground parent App.
+
+Current hostname handling is intentionally sanitized-hostname based. Public
+Suffix List and registrable-domain aggregation are not part of this frozen
+boundary.
+
+## IPC boundary
+
+The DayTrace App owns a user-only Unix domain socket at the current local
+Application Support path. The Native Messaging Host connects to it only when
+forwarding a validated domain event.
+
+The current spike boundary intentionally has no:
+
+- general IPC framework,
+- persistent queue,
+- retry subsystem,
+- repository abstraction,
+- TCP/LAN/public listener,
+- domain persistence layer.
+
+When the App is unavailable, the Native Messaging Host fails quickly and does
+not cache domain messages.
+
+## Migration validation status
+
+The available development SQLite store was copied with its SQLite sidecars to
+a temporary test location and opened with an integrity check. It contained the
+current schema and zero aggregate rows, so it is not an old compatible store.
+No real legacy-store migration PASS is claimed; a future old-store copy must
+be validated before migration support is considered complete. Duplicate
+logical rows, when encountered during load/checkpoint, are normalized to the
+greatest existing aggregate rather than blindly summed.
+
+## UI and localization
+
+The current App uses native SwiftUI `WindowGroup` and `Settings` scenes.
+
+- Dashboard is user-facing and hides technical diagnostics.
+- Diagnostics remain under Advanced Settings.
+- Follow System, 简体中文, and English are supported.
+- User-facing strings are stored in `Localizable.xcstrings`.
+
+The UI is not a permission to expand the tracking model or introduce storage.
+
+## Source organization baseline
+
+The current physical source container remains `app/DayTraceSpike/` to avoid a
+broad directory move in Foundation Sprint 1. The formal Xcode identity is:
+
+```text
+Project: DayTrace.xcodeproj
+App target/module: DayTrace
+Test target: DayTraceTests
+Native host target: DayTraceNativeHost
+```
+
+Generated build output and Xcode user state are excluded by `.gitignore`.
+
+## Explicit non-goals
+
+The following are not part of this architecture freeze:
+
+- History UI, charts, and trend analytics,
+- media/background activity exceptions,
+- categories or user overrides,
+- account or cloud sync,
+- export or delete-data workflows,
+- launch at login,
+- public networking,
+- AI-derived classification.

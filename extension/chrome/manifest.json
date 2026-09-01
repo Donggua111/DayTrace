@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "DayTrace Technical Spike",
+  "version": "0.1.0",
+  "description": "Reports only the sanitized active Chrome hostname to the local DayTrace spike host.",
+  "permissions": [
+    "tabs",
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "service-worker.js"
+  }
+}
