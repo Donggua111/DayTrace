@@ -16,6 +16,40 @@ struct DailyUsageSnapshot: Equatable {
     }
 }
 
+/// Website attribution is derived from raw observations and the matching
+/// Chrome foreground total. Raw website durations remain available in the
+/// store; this helper only produces a user-facing/reported view.
+enum WebsiteUsageReconciliation {
+    static func reconcile(
+        websiteUsage: [String: TimeInterval],
+        chromeUsage: TimeInterval
+    ) -> [String: TimeInterval] {
+        let finiteChromeUsage = chromeUsage.isFinite ? max(0, chromeUsage) : 0
+        var sanitized: [String: TimeInterval] = [:]
+        for (domain, duration) in websiteUsage {
+            guard duration.isFinite else { continue }
+            let safeDuration = max(0, duration)
+            if safeDuration > 0 {
+                sanitized[domain] = safeDuration
+            }
+        }
+
+        guard finiteChromeUsage > 0 else { return [:] }
+        let websiteTotal = sanitized.values.reduce(0, +)
+        guard websiteTotal.isFinite, websiteTotal > finiteChromeUsage else {
+            return sanitized
+        }
+
+        let scale = finiteChromeUsage / websiteTotal
+        return sanitized.reduce(into: [:]) { result, entry in
+            let scaledDuration = entry.value * scale
+            if scaledDuration.isFinite, scaledDuration > 0 {
+                result[entry.key] = scaledDuration
+            }
+        }
+    }
+}
+
 struct TypingActivitySnapshot: Equatable {
     let metrics: TypingMetrics
     let appMetricsByApp: [AppIdentity: AppTypingMetrics]
@@ -37,6 +71,79 @@ struct TypingActivitySnapshot: Equatable {
                 return $0.value.typedCharacters > $1.value.typedCharacters
             }
             .first?.key
+    }
+}
+
+enum HistoryRange: String, CaseIterable, Identifiable {
+    case today
+    case yesterday
+    case last7Days
+    case last30Days
+    case thisWeek
+    case thisMonth
+
+    var id: String { rawValue }
+
+    var localizationKey: String {
+        switch self {
+        case .today: return "history.range.today"
+        case .yesterday: return "history.range.yesterday"
+        case .last7Days: return "history.range.last7Days"
+        case .last30Days: return "history.range.last30Days"
+        case .thisWeek: return "history.range.thisWeek"
+        case .thisMonth: return "history.range.thisMonth"
+        }
+    }
+
+    func startDate(at date: Date, calendar: Calendar) -> Date {
+        let today = calendar.startOfDay(for: date)
+        switch self {
+        case .today:
+            return today
+        case .yesterday:
+            return calendar.date(byAdding: .day, value: -1, to: today) ?? today
+        case .last7Days:
+            return calendar.date(byAdding: .day, value: -6, to: today) ?? today
+        case .last30Days:
+            return calendar.date(byAdding: .day, value: -29, to: today) ?? today
+        case .thisWeek:
+            return calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? today
+        case .thisMonth:
+            return calendar.dateInterval(of: .month, for: date)?.start ?? today
+        }
+    }
+}
+
+struct HistoryDay: Identifiable, Equatable {
+    let date: Date
+    let totalUsage: TimeInterval
+
+    var id: Date { date }
+}
+
+struct HistoryUsageSnapshot: Equatable {
+    let range: HistoryRange
+    let startDate: Date
+    let endDate: Date
+    var appUsageByApp: [AppIdentity: TimeInterval] = [:]
+    var websiteUsageByDomain: [String: TimeInterval] = [:]
+    var typingMetrics = TypingMetrics()
+    var typingAppMetricsByApp: [AppIdentity: AppTypingMetrics] = [:]
+    var typingSessions = 0
+    var activeTypingDuration: TimeInterval = 0
+    var dailyTotals: [HistoryDay] = []
+
+    var totalUsage: TimeInterval {
+        appUsageByApp.values.reduce(0, +)
+    }
+
+    var typingActivity: TypingActivitySnapshot {
+        TypingActivitySnapshot(
+            metrics: typingMetrics,
+            appMetricsByApp: typingAppMetricsByApp,
+            typingSessions: typingSessions,
+            activeTypingDuration: activeTypingDuration
+        )
     }
 }
 
@@ -225,6 +332,200 @@ final class UsageStore: ObservableObject {
         )
     }
 
+    func historySnapshot(
+        for range: HistoryRange,
+        at date: Date = Date(),
+        foregroundTracker: ForegroundTracker? = nil,
+        domainTracker: DomainTracker? = nil
+    ) -> HistoryUsageSnapshot {
+        let startDate = range.startDate(at: date, calendar: calendar)
+        let todayStart = calendar.startOfDay(for: date)
+        let endDate = range == .yesterday
+            ? calendar.date(byAdding: .day, value: -1, to: todayStart) ?? todayStart
+            : todayStart
+        let currentDayKey = DayTraceDateKey.key(for: date, calendar: calendar)
+        let resultEndDate = range == .yesterday
+            ? calendar.date(byAdding: .day, value: -1, to: date) ?? date
+            : date
+        var result = HistoryUsageSnapshot(range: range, startDate: startDate, endDate: resultEndDate)
+        var cursor = startDate
+
+        while cursor <= endDate {
+            let dayKey = DayTraceDateKey.key(for: cursor, calendar: calendar)
+            let daySnapshot: DailyUsageSnapshot
+            if dayKey == currentDayKey {
+                if let foregroundTracker, let domainTracker {
+                    daySnapshot = liveSnapshot(
+                        at: date,
+                        foregroundTracker: foregroundTracker,
+                        domainTracker: domainTracker
+                    )
+                } else {
+                    daySnapshot = snapshot(at: date)
+                }
+            } else {
+                ensureBaseLoaded(for: dayKey)
+                // Include runtime intervals that have not crossed a
+                // checkpoint, even when the queried day is no longer today.
+                daySnapshot = snapshot(
+                    for: dayKey,
+                    appDurations: runtimeAppDurationsByDay,
+                    domainDurations: runtimeDomainDurationsByDay
+                )
+            }
+            merge(daySnapshot, into: &result)
+            result.dailyTotals.append(HistoryDay(date: cursor, totalUsage: daySnapshot.totalUsage))
+            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? endDate.addingTimeInterval(1)
+        }
+
+        return result
+    }
+
+    func exportAggregatesJSON() -> Data? {
+        guard status.isReady else { return nil }
+        let appRequest = AppUsageDailyRecord.fetchRequest()
+        let websiteRequest = WebsiteUsageDailyRecord.fetchRequest()
+        let typingRequest = TypingDailyRecord.fetchRequest()
+        let typingAppRequest = TypingAppDailyRecord.fetchRequest()
+
+        guard let apps = try? context.fetch(appRequest),
+              let websites = try? context.fetch(websiteRequest),
+              let typing = try? context.fetch(typingRequest),
+              let typingApps = try? context.fetch(typingAppRequest) else {
+            return nil
+        }
+
+        let sortedApps = apps.sorted {
+            if $0.dateKey != $1.dateKey { return $0.dateKey < $1.dateKey }
+            if $0.bundleIdentifier != $1.bundleIdentifier { return $0.bundleIdentifier < $1.bundleIdentifier }
+            if $0.durationSeconds != $1.durationSeconds { return $0.durationSeconds < $1.durationSeconds }
+            return $0.displayName < $1.displayName
+        }
+        let sortedTyping = typing
+            .filter { $0.metricVersion == Int64(Self.currentMetricVersion) }
+            .sorted { $0.dateKey < $1.dateKey }
+        let sortedTypingApps = typingApps
+            .filter { $0.metricVersion == Int64(Self.currentMetricVersion) }
+            .sorted {
+                if $0.dateKey != $1.dateKey { return $0.dateKey < $1.dateKey }
+                return $0.bundleIdentifier < $1.bundleIdentifier
+            }
+
+        // Persisted website records are raw observations. Export must use the
+        // same derived attribution rule as Dashboard and History, while the
+        // app and typing aggregates remain aggregate-only records.
+        var chromeUsageByDay: [String: TimeInterval] = [:]
+        for record in apps where record.bundleIdentifier == "com.google.Chrome" {
+            guard record.durationSeconds.isFinite else { continue }
+            chromeUsageByDay[record.dateKey] = max(
+                chromeUsageByDay[record.dateKey, default: 0],
+                max(0, record.durationSeconds)
+            )
+        }
+        var rawWebsiteUsageByDay: [String: [String: TimeInterval]] = [:]
+        for record in websites {
+            guard record.durationSeconds.isFinite else { continue }
+            rawWebsiteUsageByDay[record.dateKey, default: [:]][record.domain] = max(
+                rawWebsiteUsageByDay[record.dateKey, default: [:]][record.domain, default: 0],
+                max(0, record.durationSeconds)
+            )
+        }
+        let derivedWebsiteUsage = rawWebsiteUsageByDay.keys.sorted().flatMap { dayKey in
+            let derived = WebsiteUsageReconciliation.reconcile(
+                websiteUsage: rawWebsiteUsageByDay[dayKey, default: [:]],
+                chromeUsage: chromeUsageByDay[dayKey, default: 0]
+            )
+            return derived.keys.sorted().map { domain in
+                [
+                    "date": dayKey,
+                    "browser": "com.google.Chrome",
+                    "domain": domain,
+                    "durationSeconds": derived[domain] ?? 0
+                ]
+            }
+        }
+
+        let object: [String: Any] = [
+            "schemaVersion": 1,
+            "exportedAt": ISO8601DateFormatter().string(from: Date()),
+            "appUsage": sortedApps.map {
+                [
+                    "date": $0.dateKey,
+                    "bundleIdentifier": $0.bundleIdentifier,
+                    "displayName": $0.displayName,
+                    "durationSeconds": $0.durationSeconds
+                ]
+            },
+            "websiteUsage": derivedWebsiteUsage,
+            "typing": sortedTyping.map {
+                [
+                    "date": $0.dateKey,
+                    "englishCharacters": $0.englishCharacters,
+                    "numberCharacters": $0.numberCharacters,
+                    "symbolCharacters": $0.symbolCharacters,
+                    "spaceCharacters": $0.spaceCharacters,
+                    "typingSessions": $0.typingSessions,
+                    "activeTypingDurationSeconds": $0.activeTypingDurationSeconds,
+                    "metricVersion": $0.metricVersion
+                ]
+            },
+            "typingByApp": sortedTypingApps.map {
+                [
+                    "date": $0.dateKey,
+                    "bundleIdentifier": $0.bundleIdentifier,
+                    "displayName": $0.displayName,
+                    "englishCharacters": $0.englishCharacters,
+                    "numberCharacters": $0.numberCharacters,
+                    "symbolCharacters": $0.symbolCharacters,
+                    "spaceCharacters": $0.spaceCharacters,
+                    "metricVersion": $0.metricVersion
+                ]
+            }
+        ]
+
+        return try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
+    }
+
+    @discardableResult
+    func deleteAllData() -> Bool {
+        guard status.isReady else { return false }
+        let entityNames = [
+            "AppUsageDailyRecord",
+            "WebsiteUsageDailyRecord",
+            "TypingDailyRecord",
+            "TypingAppDailyRecord"
+        ]
+
+        do {
+            for entityName in entityNames {
+                let request = NSFetchRequest<NSManagedObject>(entityName: entityName)
+                let objects = try context.fetch(request)
+                objects.forEach(context.delete)
+            }
+            if let saveHandler {
+                try saveHandler(context)
+            } else {
+                try context.save()
+            }
+            loadedDayKeys.removeAll()
+            baseSnapshotsByDay.removeAll()
+            runtimeAppDurationsByDay.removeAll()
+            runtimeDomainDurationsByDay.removeAll()
+            runtimeTypingByDay.removeAll()
+            foregroundProgressByInterval.removeAll()
+            domainProgressByInterval.removeAll()
+            lastCheckpointAt = nil
+            revision += 1
+            status = .ready
+            return true
+        } catch {
+            context.rollback()
+            status = .degraded(error.localizedDescription)
+            revision += 1
+            return false
+        }
+    }
+
     func recordTyping(category: TypingCategory, app: AppIdentity?, at date: Date) {
         guard category != .ignored else { return }
         let dayKey = DayTraceDateKey.key(for: date, calendar: calendar)
@@ -254,9 +555,10 @@ final class UsageStore: ObservableObject {
         revision += 1
     }
 
-    func checkpoint(at date: Date = Date()) {
+    @discardableResult
+    func checkpoint(at date: Date = Date()) -> Bool {
         ensureBaseLoaded(for: DayTraceDateKey.key(for: date, calendar: calendar))
-        persistRuntimeSnapshots(at: date)
+        return persistRuntimeSnapshots(at: date)
     }
 
     func calendarDidChange(at _: Date) {
@@ -312,11 +614,12 @@ final class UsageStore: ObservableObject {
         baseSnapshotsByDay.removeValue(forKey: dayKey)
     }
 
+    @discardableResult
     func checkpoint(
         foregroundTracker: ForegroundTracker,
         domainTracker: DomainTracker,
         at date: Date = Date()
-    ) {
+    ) -> Bool {
         var candidateForegroundProgress = foregroundProgressByInterval
         var candidateDomainProgress = domainProgressByInterval
         var candidateAppDurations = runtimeAppDurationsByDay
@@ -342,7 +645,9 @@ final class UsageStore: ObservableObject {
             domainProgressByInterval = candidateDomainProgress
             runtimeAppDurationsByDay = candidateAppDurations
             runtimeDomainDurationsByDay = candidateDomainDurations
+            return true
         }
+        return false
     }
 
     // These aggregate-only helpers make deterministic day-boundary tests
@@ -356,6 +661,14 @@ final class UsageStore: ObservableObject {
         guard browserBundleIdentifier == "com.google.Chrome" else { return }
         processDomainInterval(interval, progress: &domainProgressByInterval, durations: &runtimeDomainDurationsByDay)
         revision += 1
+    }
+
+    func rawWebsiteDurationForTesting(at date: Date, domain: String) -> TimeInterval {
+        let dayKey = DayTraceDateKey.key(for: date, calendar: calendar)
+        let request = WebsiteUsageDailyRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "dateKey == %@ AND domain == %@", dayKey, domain)
+        guard let records = try? context.fetch(request) else { return 0 }
+        return records.map(\.durationSeconds).max() ?? 0
     }
 
     private func accumulateRuntime(
@@ -406,7 +719,7 @@ final class UsageStore: ObservableObject {
         for dayKey in affectedDays {
             ensureBaseLoaded(for: dayKey)
             upsert(
-                snapshot(for: dayKey, appDurations: appDurations, domainDurations: domainDurations),
+                rawSnapshot(for: dayKey, appDurations: appDurations, domainDurations: domainDurations),
                 dayKey: dayKey
             )
         }
@@ -433,7 +746,7 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    private func combinedSnapshot(
+    private func rawSnapshot(
         for dayKey: String,
         appDurations: [String: [AppIdentity: TimeInterval]],
         domainDurations: [String: [String: TimeInterval]]
@@ -461,6 +774,49 @@ final class UsageStore: ObservableObject {
         result.activeTypingDuration += typing.activeTypingDuration
         result.metricVersion = Self.currentMetricVersion
         return result
+    }
+
+    private func combinedSnapshot(
+        for dayKey: String,
+        appDurations: [String: [AppIdentity: TimeInterval]],
+        domainDurations: [String: [String: TimeInterval]]
+    ) -> DailyUsageSnapshot {
+        var result = rawSnapshot(
+            for: dayKey,
+            appDurations: appDurations,
+            domainDurations: domainDurations
+        )
+        let chromeDuration = result.appUsageByApp
+            .filter { $0.key.bundleIdentifier == "com.google.Chrome" }
+            .values
+            .reduce(0, +)
+        result.websiteUsageByDomain = WebsiteUsageReconciliation.reconcile(
+            websiteUsage: result.websiteUsageByDomain,
+            chromeUsage: chromeDuration
+        )
+        return result
+    }
+
+    private func merge(_ snapshot: DailyUsageSnapshot, into result: inout HistoryUsageSnapshot) {
+        for (app, duration) in snapshot.appUsageByApp {
+            mergeAppDuration(app, duration: duration, into: &result.appUsageByApp)
+        }
+        for (domain, duration) in snapshot.websiteUsageByDomain {
+            result.websiteUsageByDomain[domain, default: 0] += duration
+        }
+        result.typingMetrics = TypingMetrics(
+            englishCharacters: result.typingMetrics.englishCharacters + snapshot.typingMetrics.englishCharacters,
+            numberCharacters: result.typingMetrics.numberCharacters + snapshot.typingMetrics.numberCharacters,
+            symbolCharacters: result.typingMetrics.symbolCharacters + snapshot.typingMetrics.symbolCharacters,
+            spaceCharacters: result.typingMetrics.spaceCharacters + snapshot.typingMetrics.spaceCharacters
+        )
+        for (app, metrics) in snapshot.typingAppMetricsByApp {
+            var existing = removeAppMetrics(for: app, from: &result.typingAppMetricsByApp)
+            existing.adding(metrics)
+            result.typingAppMetricsByApp[app] = existing
+        }
+        result.typingSessions += snapshot.typingSessions
+        result.activeTypingDuration += snapshot.activeTypingDuration
     }
 
     private func snapshot(

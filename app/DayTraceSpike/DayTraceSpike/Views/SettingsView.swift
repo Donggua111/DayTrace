@@ -1,10 +1,17 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @ObservedObject var model: DayTraceViewModel
     @Binding var languageRawValue: String
     @State private var diagnosticsExpanded = false
+    @State private var deleteConfirmationPresented = false
+    @State private var actionMessage: LocalizedStringKey?
+    @State private var backupMessage: LocalizedStringKey?
+    @State private var newCategory = ""
+    @State private var renamingCategory: String?
+    @State private var categoryDraft = ""
 
     var body: some View {
         Form {
@@ -13,6 +20,54 @@ struct SettingsView: View {
                     ForEach(AppLanguage.allCases) { language in
                         Text(LocalizedStringKey(language.localizationKey))
                             .tag(language.rawValue)
+                    }
+                }
+
+                Toggle(
+                    "settings.launchAtLogin",
+                    isOn: Binding(
+                        get: { model.launchAtLogin.isEnabled },
+                        set: { model.launchAtLogin.setEnabled($0) }
+                    )
+                )
+                HStack {
+                    Text("settings.launchAtLoginStatus")
+                    Spacer()
+                    Text(LocalizedStringKey(model.launchAtLogin.statusLocalizationKey))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("settings.health") {
+                healthRow("health.tracking", value: model.foregroundTracker.isTracking ? "status.running" : "status.paused", icon: "record.circle")
+                healthRow("health.chrome", value: model.socketBridge.status.localizationKey, icon: "globe")
+                healthRow("health.persistence", value: persistenceHealthKey, icon: "externaldrive")
+                HStack {
+                    Text("health.lastCheckpoint")
+                    Spacer()
+                    timestampText(model.usageStore.lastCheckpointAt).foregroundStyle(.secondary)
+                }
+                HStack {
+                    Text("health.daysTrackedLast30Days")
+                    Spacer()
+                    Text(String(model.history(for: .last30Days).dailyTotals.count)).monospacedDigit()
+                }
+                HStack {
+                    Text("health.appsSeenLast30Days")
+                    Spacer()
+                    Text(String(model.history(for: .last30Days).appUsageByApp.count)).monospacedDigit()
+                }
+                HStack {
+                    Text("health.websitesSeenLast30Days")
+                    Spacer()
+                    Text(String(model.history(for: .last30Days).websiteUsageByDomain.count)).monospacedDigit()
+                }
+            }
+
+            Section("settings.menuBar") {
+                Picker("settings.menuBarDisplay", selection: menuBarDisplayBinding) {
+                    ForEach(MenuBarDisplayMode.allCases) { mode in
+                        Text(LocalizedStringKey(mode.localizationKey)).tag(mode.rawValue)
                     }
                 }
             }
@@ -75,6 +130,82 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                Button("settings.exportData", action: exportData)
+                Button("settings.deleteData", role: .destructive) {
+                    deleteConfirmationPresented = true
+                }
+                if let actionMessage {
+                    Text(actionMessage)
+                        .font(DayTraceDesign.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("settings.data") {
+                Toggle("settings.automaticBackups", isOn: Binding(
+                    get: { model.backupManager.isEnabled },
+                    set: { model.backupManager.isEnabled = $0 }
+                ))
+                Button("settings.backupNow") {
+                    backupMessage = model.createBackup() == nil ? "settings.backupFailed" : "settings.backupSucceeded"
+                }
+                Button("settings.showDataLocation", action: showDataLocation)
+                if let backupMessage {
+                    Text(backupMessage).font(DayTraceDesign.caption).foregroundStyle(.secondary)
+                }
+                Text("settings.dataWarning")
+                    .font(DayTraceDesign.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("metadata.categories") {
+                HStack {
+                    TextField("metadata.newCategory", text: $newCategory)
+                    Button("metadata.addCategory") {
+                        model.metadataStore.addCategory(newCategory)
+                        newCategory = ""
+                    }
+                    .disabled(newCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                ForEach(model.metadataStore.customCategories, id: \.self) { category in
+                    HStack {
+                        if renamingCategory == category {
+                            TextField(category, text: $categoryDraft)
+                                .onSubmit { finishRenaming(category) }
+                            Button { finishRenaming(category) } label: {
+                                Image(systemName: "checkmark")
+                            }
+                            .buttonStyle(.borderless)
+                        } else {
+                            Text(category)
+                        }
+                        Spacer()
+                        if renamingCategory != category {
+                            Button {
+                                renamingCategory = category
+                                categoryDraft = category
+                            } label: {
+                                Image(systemName: "pencil")
+                            }
+                            .buttonStyle(.borderless)
+                            .help("metadata.renameCategory")
+                        }
+                        Button("metadata.deleteCategory", role: .destructive) {
+                            model.metadataStore.deleteCategory(category)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                Text("metadata.categoryNote").font(DayTraceDesign.caption).foregroundStyle(.secondary)
+            }
+
+            Section("settings.privacySummary") {
+                Label("settings.privacy.stored", systemImage: "checkmark.shield")
+                Text("settings.privacy.storedDetail").font(DayTraceDesign.caption).foregroundStyle(.secondary)
+                Label("settings.privacy.neverStored", systemImage: "lock.shield")
+                Text("settings.privacy.neverStoredDetail").font(DayTraceDesign.caption).foregroundStyle(.secondary)
             }
 
             Section("settings.advanced") {
@@ -97,6 +228,7 @@ struct SettingsView: View {
                             "diagnostics.ipc",
                             Text(LocalizedStringKey(model.socketBridge.status.localizationKey))
                         )
+                        diagnosticRow("diagnostics.persistence", persistenceStatusText)
                         diagnosticRow("diagnostics.nativeMessagingHost", Text(verbatim: "com.daytrace.spike"))
                         diagnosticRow(
                             "diagnostics.bundleID",
@@ -119,8 +251,14 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 560, height: 540)
+        .frame(width: 600, height: 700)
         .padding(DayTraceDesign.spaceS)
+        .alert("settings.deleteData.confirmTitle", isPresented: $deleteConfirmationPresented) {
+            Button("settings.deleteData.cancel", role: .cancel) {}
+            Button("settings.deleteData.confirm", role: .destructive, action: deleteData)
+        } message: {
+            Text("settings.deleteData.confirmMessage")
+        }
     }
 
     private var eventTapText: Text {
@@ -137,6 +275,33 @@ struct SettingsView: View {
         case "Input Monitoring request denied": return Text("status.listenerPermissionDenied")
         case "Unable to create event tap": return Text("status.listenerFailed")
         default: return Text(verbatim: model.typingCounter.eventTapStatus)
+        }
+    }
+
+    private var persistenceStatusText: Text {
+        switch model.usageStore.status {
+        case .ready:
+            return Text("persistence.status.healthy")
+        case .degraded:
+            return Text("persistence.status.degraded")
+        case .failed:
+            return Text("persistence.status.failed")
+        }
+    }
+
+    private var persistenceHealthKey: String {
+        switch model.usageStore.status {
+        case .ready: return "health.healthy"
+        case .degraded: return "health.degraded"
+        case .failed: return "health.unavailable"
+        }
+    }
+
+    private func healthRow(_ label: LocalizedStringKey, value: String, icon: String) -> some View {
+        HStack {
+            Label(label, systemImage: icon)
+            Spacer()
+            Text(LocalizedStringKey(value)).foregroundStyle(.secondary)
         }
     }
 
@@ -163,5 +328,48 @@ struct SettingsView: View {
 
     private func openInputMonitoringSettings() {
         NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+    }
+
+    private var menuBarDisplayBinding: Binding<String> {
+        Binding(
+            get: { UserDefaults.standard.string(forKey: MenuBarDisplayMode.storageKey) ?? MenuBarDisplayMode.usage.rawValue },
+            set: { UserDefaults.standard.set($0, forKey: MenuBarDisplayMode.storageKey) }
+        )
+    }
+
+    private func exportData() {
+        guard let data = model.exportAggregatesJSON() else {
+            actionMessage = "settings.exportFailed"
+            return
+        }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "DayTrace-aggregates.json"
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try data.write(to: url, options: .atomic)
+            actionMessage = "settings.exportSucceeded"
+        } catch {
+            actionMessage = "settings.exportFailed"
+        }
+    }
+
+    private func deleteData() {
+        actionMessage = model.deleteAllData() ? "settings.deleteSucceeded" : "settings.deleteFailed"
+    }
+
+    private func showDataLocation() {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        let directory = base.appendingPathComponent("DayTrace", isDirectory: true)
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        NSWorkspace.shared.activateFileViewerSelecting([directory])
+    }
+
+    private func finishRenaming(_ category: String) {
+        model.metadataStore.renameCategory(from: category, to: categoryDraft)
+        renamingCategory = nil
+        categoryDraft = ""
     }
 }

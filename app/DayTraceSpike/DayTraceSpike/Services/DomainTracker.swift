@@ -32,25 +32,57 @@ final class DomainTracker: ObservableObject {
 
     func receive(domain: String) {
         guard Self.isSafeDomainToken(domain) else {
+            invalidateCurrentDomain()
             lastMessageStatus = "Rejected non-domain payload"
             return
         }
         cachedDomain = domain
-        currentDomain = domain
         let date = nowProvider()
         lastDomainEventAt = date
         lastMessageStatus = "Received sanitized domain"
-        guard isChromeForeground else { return }
+        guard isChromeForeground else {
+            currentDomain = "—"
+            return
+        }
+        currentDomain = domain
         switchDomain(to: domain, at: date)
     }
 
     func foregroundChanged(to app: AppIdentity?, at date: Date) {
         guard app?.bundleIdentifier == "com.google.Chrome" else {
             closeActiveDomain(at: date)
+            currentDomain = "—"
             return
         }
-        guard let cachedDomain else { return }
+        guard let cachedDomain else {
+            currentDomain = "—"
+            return
+        }
+        currentDomain = cachedDomain
         switchDomain(to: cachedDomain, at: date)
+    }
+
+    /// Clears the current attribution when the extension/native-host channel
+    /// is gone. The next Chrome signal must establish a new domain interval;
+    /// an old domain is never resumed from stale connection state.
+    func connectionDidClose(at date: Date? = nil) {
+        closeActiveDomain(at: date ?? nowProvider())
+        cachedDomain = nil
+        currentDomain = "—"
+        lastMessageStatus = "Waiting for Chrome domain"
+    }
+
+    func resetRuntimeState(at date: Date = Date()) {
+        let domain = isChromeForeground ? activeDomain ?? cachedDomain : nil
+        activeDomain = nil
+        activeStart = nil
+        domainIntervals.removeAll()
+        domainAggregateByDomain.removeAll()
+        currentDomain = domain ?? "—"
+        if let domain {
+            activeDomain = domain
+            activeStart = date
+        }
     }
 
     func aggregate(for domain: String, at date: Date = Date()) -> TimeInterval {
@@ -91,6 +123,12 @@ final class DomainTracker: ObservableObject {
         domainAggregateByDomain[domain, default: 0] += duration
         activeDomain = nil
         activeStart = nil
+    }
+
+    private func invalidateCurrentDomain() {
+        closeActiveDomain(at: nowProvider())
+        cachedDomain = nil
+        currentDomain = "—"
     }
 
     private static func isSafeDomainToken(_ value: String) -> Bool {

@@ -4,6 +4,7 @@ import Foundation
 
 final class UnixSocketBridge: ObservableObject {
     @Published private(set) var status: IPCStatus = .waiting
+    var onStatusChanged: ((IPCStatus) -> Void)?
 
     private let queue = DispatchQueue(label: "com.daytrace.spike.unix-socket", qos: .utility)
     private let messageHandler: (String) -> Void
@@ -28,7 +29,7 @@ final class UnixSocketBridge: ObservableObject {
         if socket >= 0 { Darwin.close(socket) }
         serverSocket = -1
         unlink(socketPath)
-        DispatchQueue.main.async { [weak self] in self?.status = .waiting }
+        publishStatus(.waiting)
     }
 
     private var hostManifestExists: Bool {
@@ -86,6 +87,7 @@ final class UnixSocketBridge: ObservableObject {
             guard client >= 0 else { break }
             handle(client: client)
             Darwin.close(client)
+            publishStatus(hostManifestExists ? .waiting : .notConfigured)
         }
     }
 
@@ -112,6 +114,10 @@ final class UnixSocketBridge: ObservableObject {
     }
 
     private func publishStatus(_ value: IPCStatus) {
-        DispatchQueue.main.async { [weak self] in self?.status = value }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.status = value
+            self.onStatusChanged?(value)
+        }
     }
 }

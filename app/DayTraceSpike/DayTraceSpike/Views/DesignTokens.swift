@@ -13,6 +13,7 @@ enum DayTraceDesign {
 
     static let title = Font.system(size: 30, weight: .bold, design: .rounded)
     static let metric = Font.system(size: 28, weight: .semibold, design: .rounded)
+    static let metricSmall = Font.system(size: 20, weight: .semibold, design: .rounded)
     static let section = Font.system(size: 17, weight: .semibold)
     static let body = Font.system(size: 14, weight: .regular)
     static let bodyMedium = Font.system(size: 14, weight: .medium)

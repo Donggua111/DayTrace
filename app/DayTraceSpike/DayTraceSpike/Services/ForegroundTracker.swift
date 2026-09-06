@@ -33,18 +33,31 @@ final class ForegroundTracker: ObservableObject {
     }
 
     func pause() {
+        pause(at: Date())
+    }
+
+    private func pause(at date: Date) {
         guard isTracking else { return }
         isTracking = false
-        closeActiveInterval(at: Date())
+        closeActiveInterval(at: date)
         systemState = .paused
-        onTransition?(nil, Date())
+        currentApp = nil
+        onTransition?(nil, date)
     }
 
     func resume() {
+        resume(at: Date())
+    }
+
+    private func resume(at date: Date, frontmostApp: AppIdentity? = nil) {
         guard !isTracking else { return }
         isTracking = true
         systemState = .awake
-        refreshFrontmostApplication(at: Date())
+        if let frontmostApp {
+            refresh(identity: frontmostApp, at: date)
+            return
+        }
+        refreshFrontmostApplication(at: date)
     }
 
     func currentElapsed(at date: Date = Date()) -> TimeInterval {
@@ -75,6 +88,17 @@ final class ForegroundTracker: ObservableObject {
 
     func refreshNow() {
         refreshFrontmostApplication(at: Date())
+    }
+
+    func resetRuntimeState(at date: Date = Date()) {
+        closedIntervals.removeAll()
+        foregroundAggregateByApp.removeAll()
+        activeStartDate = nil
+        activeStartUptime = nil
+        currentIntervalStart = nil
+        currentApp = nil
+        guard isTracking, systemState == .awake, sessionIsActive else { return }
+        refreshFrontmostApplication(at: date)
     }
 
     private func observeSystemEvents() {
@@ -292,6 +316,8 @@ final class ForegroundTracker: ObservableObject {
         case sleep
         case wake
         case unlock
+        case pause
+        case resume
     }
 
     // This seam exercises the same state transitions used by the real
@@ -312,6 +338,10 @@ final class ForegroundTracker: ObservableObject {
         case .unlock:
             sessionIsActive = true
             resumeFromSystemEvent(state: .awake, at: date, frontmostApp: frontmostApp)
+        case .pause:
+            pause(at: date)
+        case .resume:
+            resume(at: date, frontmostApp: frontmostApp)
         }
     }
 

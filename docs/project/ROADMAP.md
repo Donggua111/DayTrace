@@ -6,6 +6,7 @@
 **Technical Spike 01: COMPLETE**
 **Internal Beta Foundation Sprint 1A/1B: COMPLETE**
 **Internal Beta Sprint 2B Core Persistence: STABILIZED**
+**Sprint 3 Product Hardening: IMPLEMENTED — AUTOMATED REGRESSION PASSED**
 **F-008 Event Tap Lifecycle: IMPLEMENTED — REAL-MAC REGRESSION PASSED**
 
 Next gate: **Independent re-review complete; timezone validation remains deferred**
@@ -69,8 +70,9 @@ cloud, export, menu bar, launch-at-login, or other new product capabilities.
 
 ## Stage 2 — Internal Beta product work
 
-Sprint 2B establishes the first local persistence baseline without adding a
-history-facing product surface.
+Sprint 2B established the first local persistence baseline. Sprint 3 adds a
+small product surface over those daily aggregates without changing the
+tracking or IPC architecture.
 
 Completed in the current persistence fast track:
 - foreground app usage collector
@@ -83,13 +85,21 @@ Completed in the current persistence fast track:
 - periodic and termination checkpointing
 - restart recovery and idempotent upserts
 - Event Tap RunLoop-owned cleanup and relaunch safety
+- history ranges over daily aggregate records
+- menu bar summary and native launch-at-login control
+- aggregate-only JSON export and delete-all-data reset
+- live snapshot caching and application icon caching for lower refresh cost
 
-Remaining Internal Beta work, intentionally not started here:
-- menu bar
-- daily history UI
-- category mappings
-- launch at login
-- export/delete data
+Implemented in the current Insights & Control batch:
+- period comparisons, safe delta math, daily averages, and a 30-day usage heatmap
+- App/website detail surfaces, local search, pinned items, and optional App categories
+- current activity on the Dashboard
+- local privacy summary, data-location shortcut, and optional logical aggregate backups
+
+Remaining Internal Beta work, intentionally deferred here:
+- event-level timeline persistence and detailed daily entity trend series
+- backup restore/import workflows
+- privacy zones, automatic category rules, cloud/accounts, and production distribution
 
 ---
 

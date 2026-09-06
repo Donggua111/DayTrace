@@ -4,7 +4,7 @@ DayTrace is a local-first macOS activity analytics application for tracking how 
 
 ## Current stage
 
-**Technical Spike complete → Internal Beta Foundation baseline**
+**Technical Spike complete → Internal Beta Foundation → Sprint 3 hardening**
 
 Technical Spike 01 has validated the first implementation boundary. Sprint 1A
 and 1B establish the first source-controlled, formally named engineering
@@ -22,10 +22,22 @@ baseline without changing the validated tracking or communication behavior.
 - Dashboard, native Settings scene, localization, and AppIcon
 - Simplified Chinese + English UI, freely switchable
 - Pause / Resume tracking
+- History views for today, yesterday, rolling seven days, week, and month
+- History usage rhythm heatmap, period comparisons, daily averages, and local summaries
+- Drill-down views for Apps and sanitized Websites, local search, pinned items, and optional App categories
+- Menu bar summary with pause/resume and display modes
+- Launch-at-login control through the native ServiceManagement API
+- Aggregate-only JSON export and an explicit delete-all-data flow
+- Optional logical aggregate backups with deterministic retention; restore is intentionally deferred
 
 Core Data + SQLite local persistence is part of the implemented Internal Beta
-core. History, categories, launch at login, export, delete-data flows, and
-other Internal Beta product work remain future scope.
+core. History reads the existing daily aggregates; it does not add a second
+storage layer or retain raw activity events.
+
+Metadata such as pins and App categories is stored separately in UserDefaults
+and never changes usage identity or historical aggregate values. Backup files
+contain only the existing aggregate export envelope; typed content, full URLs,
+page content, and clipboard data are not stored.
 
 ## Repository structure
 

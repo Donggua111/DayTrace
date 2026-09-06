@@ -15,6 +15,8 @@ struct DashboardView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: DayTraceDesign.spaceL) {
                     header(at: context.date)
+                    currentActivityCard(at: context.date)
+                    favoritesCard(at: context.date)
                     appUsageCard(at: context.date)
                     TypingActivityView(
                         snapshot: model.typingActivity(at: context.date),
@@ -144,6 +146,28 @@ struct DashboardView: View {
                 } else {
                     ForEach(displayedApps(at: date), id: \.self) { app in
                         AppUsageRow(app: app, duration: durationText(model.appUsage(for: app, at: date)))
+                            .contextMenu {
+                                Button {
+                                    model.metadataStore.toggleFavorite(app: app)
+                                } label: {
+                                    Label(
+                                        model.metadataStore.isFavorite(app: app) ? "metadata.unpin" : "metadata.pin",
+                                        systemImage: model.metadataStore.isFavorite(app: app) ? "pin.slash" : "pin"
+                                    )
+                                }
+                                if !model.metadataStore.customCategories.isEmpty {
+                                    Menu("metadata.category") {
+                                        Button("metadata.uncategorized") {
+                                            model.metadataStore.setCategory(nil, for: app)
+                                        }
+                                        ForEach(model.metadataStore.customCategories, id: \.self) { category in
+                                            Button(category) {
+                                                model.metadataStore.setCategory(category, for: app)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                     }
 
                     if sortedApps(at: date).count > topAppLimit {
@@ -155,6 +179,35 @@ struct DashboardView: View {
                         .buttonStyle(.link)
                         .font(DayTraceDesign.bodyMedium)
                     }
+                }
+            }
+        }
+    }
+
+    private func currentActivityCard(at date: Date) -> some View {
+        UsageCard {
+            HStack(spacing: DayTraceDesign.spaceM) {
+                Image(systemName: "bolt.circle.fill")
+                    .font(.system(size: 25))
+                    .foregroundStyle(DayTraceDesign.accent)
+                VStack(alignment: .leading, spacing: DayTraceDesign.spaceXS) {
+                    Text("dashboard.currentActivity.title").font(DayTraceDesign.caption).foregroundStyle(.secondary)
+                    if let app = model.foregroundTracker.currentApp {
+                        Text(app.displayName).font(DayTraceDesign.bodyMedium)
+                        if model.domainTracker.currentDomain != "—" {
+                            Text(model.domainTracker.currentDomain)
+                                .font(DayTraceDesign.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text("dashboard.currentActivity.none").font(DayTraceDesign.body)
+                    }
+                }
+                Spacer()
+                VStack(alignment: .trailing, spacing: DayTraceDesign.spaceXS) {
+                    Text("dashboard.currentActivity.session").font(DayTraceDesign.caption).foregroundStyle(.secondary)
+                    Text(DayTraceDurationFormatter.string(seconds: model.foregroundTracker.currentElapsed(at: date), locale: selectedLocale))
+                        .font(DayTraceDesign.bodyMedium).monospacedDigit()
                 }
             }
         }
@@ -181,6 +234,35 @@ struct DashboardView: View {
                             domain: domain,
                             duration: durationText(model.websiteUsage(for: domain, at: date))
                         )
+                        .contextMenu {
+                            Button {
+                                model.metadataStore.toggleFavorite(website: domain)
+                            } label: {
+                                Label(
+                                    model.metadataStore.isFavorite(website: domain) ? "metadata.unpin" : "metadata.pin",
+                                    systemImage: model.metadataStore.isFavorite(website: domain) ? "pin.slash" : "pin"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func favoritesCard(at date: Date) -> some View {
+        let apps = sortedApps(at: date).filter { model.metadataStore.isFavorite(app: $0) }
+        let domains = domainNames(at: date).filter { model.metadataStore.isFavorite(website: $0) }
+        if !apps.isEmpty || !domains.isEmpty {
+            UsageCard {
+                VStack(alignment: .leading, spacing: DayTraceDesign.spaceM) {
+                    DayTraceSectionHeader(title: "metadata.favorites", systemImage: "pin.fill")
+                    ForEach(apps, id: \.self) { app in
+                        AppUsageRow(app: app, duration: durationText(model.appUsage(for: app, at: date)))
+                    }
+                    ForEach(domains, id: \.self) { domain in
+                        WebsiteUsageRow(domain: domain, duration: durationText(model.websiteUsage(for: domain, at: date)))
                     }
                 }
             }
@@ -221,6 +303,10 @@ struct DashboardView: View {
     private func durationText(_ seconds: TimeInterval) -> Text {
         let locale = (AppLanguage(rawValue: languageRawValue) ?? .system).locale
         return Text(verbatim: DayTraceDurationFormatter.string(seconds: seconds, locale: locale))
+    }
+
+    private var selectedLocale: Locale {
+        (AppLanguage(rawValue: languageRawValue) ?? .system).locale
     }
 
     private func openSettingsLegacy() {

@@ -362,6 +362,7 @@ final class TypingCounter: ObservableObject {
         typingSessions = 0
         activeTypingDuration = 0
         lastValidTypingEventTime = nil
+        lastTypingEventAt = nil
     }
 
     private func handle(event: CGEvent) {

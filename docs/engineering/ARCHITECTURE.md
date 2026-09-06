@@ -1,12 +1,13 @@
 # DayTrace Architecture
 
-Status: Internal Beta Sprint 2B Core Persistence baseline
-Scope: validated tracking capabilities plus the first local persistence boundary
+Status: Internal Beta Sprint 3 hardening baseline
+Scope: validated tracking capabilities, local aggregate persistence, and the
+small product surfaces built over that boundary
 
 This document records the architecture currently allowed to move forward into
-Internal Beta validation. Sprint 2B adds local daily persistence only; it does
-not authorize History UI, charts, categories, cloud, account, export,
-launch-at-login, or other unimplemented product work.
+Internal Beta validation. Sprint 3 adds History, menu bar, launch-at-login,
+export, and delete-data surfaces without changing the tracking, typing, domain,
+IPC, or privacy boundaries.
 
 ## Runtime topology
 
@@ -17,7 +18,8 @@ DayTrace macOS App
 ├── DomainTracker
 ├── UsageStore
 ├── UnixSocketBridge
-└── SwiftUI Dashboard + native Settings scene
+├── SwiftUI Dashboard + History + native Settings scene
+└── Menu bar summary
 
 Chrome Extension
   → Chrome Native Messaging Host (stdio)
@@ -229,6 +231,41 @@ The current App uses native SwiftUI `WindowGroup` and `Settings` scenes.
 - User-facing strings are stored in `Localizable.xcstrings`.
 
 The UI is not a permission to expand the tracking model or introduce storage.
+Advanced Diagnostics also exposes the persistence health state. A transient
+save failure is reported as degraded while runtime collection continues; a
+later successful checkpoint returns the store to healthy.
+
+## Product surfaces over aggregates
+
+History queries the existing local-day records and combines them with the
+current runtime snapshot for the active day. It supports today, yesterday,
+rolling seven and 30 days, the current week, and the current month. A small
+pure analytics layer derives safe comparisons, averages, heatmap cells, and
+meaningful change summaries; no event history or second usage persistence
+layer is introduced.
+
+The menu bar uses one long-lived AppKit `NSStatusItem` controller and exposes
+only a compact total/typing summary, tracking pause/resume, dashboard/settings
+actions, and a display-mode preference. Its presentation-only live refresh is
+kept at one second; real-Mac refresh validation remains a manual gate. Launch
+at login uses `SMAppService.mainApp`; it does not create a custom helper or
+background service.
+
+Export produces aggregate-only JSON containing app, sanitized website, and
+typing metrics. Delete All Activity Data removes the four current aggregate
+entities, clears in-memory runtime aggregates, and leaves the stable app and
+Native Messaging identities unchanged.
+
+Pins and App categories are display metadata stored separately in UserDefaults;
+they never modify bundle/domain identity or historical usage values. Optional
+backups wrap the existing aggregate export in a versioned JSON envelope under
+the user Application Support directory and prune only DayTrace-managed files.
+Restore/import is intentionally deferred until transactional replacement and
+rollback semantics are specified.
+
+Dashboard refreshes reuse one live snapshot per displayed timestamp and cache
+resolved application icons. These are presentation optimizations only; they do
+not alter tracker event handling or persisted values.
 
 ## Source organization baseline
 
@@ -248,11 +285,9 @@ Generated build output and Xcode user state are excluded by `.gitignore`.
 
 The following are not part of this architecture freeze:
 
-- History UI, charts, and trend analytics,
+- per-entity event-level charts and trend persistence,
 - media/background activity exceptions,
-- categories or user overrides,
+- automatic category rules and privacy zones,
 - account or cloud sync,
-- export or delete-data workflows,
-- launch at login,
 - public networking,
 - AI-derived classification.

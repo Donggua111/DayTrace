@@ -20,6 +20,9 @@ struct AppUsageRow: View {
                 .monospacedDigit()
         }
         .frame(minHeight: 36)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(app.displayName))
+        .accessibilityValue(duration)
     }
 }
 
@@ -45,10 +48,17 @@ struct WebsiteUsageRow: View {
                 .monospacedDigit()
         }
         .frame(minHeight: 34)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Text(domain))
+        .accessibilityValue(duration)
     }
 }
 
-private struct AppIconView: View {
+private enum AppIconCache {
+    static let images = NSCache<NSString, NSImage>()
+}
+
+struct AppIconView: View {
     let app: AppIdentity
 
     var body: some View {
@@ -68,9 +78,15 @@ private struct AppIconView: View {
     }
 
     private var applicationIcon: NSImage? {
+        let cacheKey = app.bundleIdentifier as NSString
+        if let cached = AppIconCache.images.object(forKey: cacheKey) {
+            return cached
+        }
         guard let applicationURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleIdentifier) else {
             return nil
         }
-        return NSWorkspace.shared.icon(forFile: applicationURL.path)
+        let icon = NSWorkspace.shared.icon(forFile: applicationURL.path)
+        AppIconCache.images.setObject(icon, forKey: cacheKey)
+        return icon
     }
 }

@@ -7,6 +7,16 @@
     "—" : {
 
     },
+    "%@ · %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
     "action.openSystemSettings" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -887,6 +897,23 @@
         }
       }
     },
+    "diagnostics.persistence" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Persistence"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据存储"
+          }
+        }
+      }
+    },
     "diagnostics.subtitle" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1192,6 +1219,239 @@
         }
       }
     },
+    "history.apps.empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No app usage in this range."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此时间范围内没有应用使用记录。"
+          }
+        }
+      }
+    },
+    "history.apps.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apps"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "应用"
+          }
+        }
+      }
+    },
+    "history.range.last7Days" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 7 Days"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近 7 天"
+          }
+        }
+      }
+    },
+    "history.range.thisMonth" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Month"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本月"
+          }
+        }
+      }
+    },
+    "history.range.thisWeek" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Week"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本周"
+          }
+        }
+      }
+    },
+    "history.range.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date range"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时间范围"
+          }
+        }
+      }
+    },
+    "history.range.today" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        }
+      }
+    },
+    "history.range.yesterday" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yesterday"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "昨天"
+          }
+        }
+      }
+    },
+    "history.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史记录"
+          }
+        }
+      }
+    },
+    "history.totalUsage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total Usage"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "总使用时间"
+          }
+        }
+      }
+    },
+    "history.typedCharacters" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typed Characters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入字符"
+          }
+        }
+      }
+    },
+    "history.typing.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typing Activity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入活动"
+          }
+        }
+      }
+    },
+    "history.websites.empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No website usage in this range."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此时间范围内没有网站使用记录。"
+          }
+        }
+      }
+    },
+    "history.websites.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Websites"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网站"
+          }
+        }
+      }
+    },
     "language.english" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1277,6 +1537,291 @@
         }
       }
     },
+    "launchAtLogin.status.disabled" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关闭"
+          }
+        }
+      }
+    },
+    "launchAtLogin.status.enabled" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已开启"
+          }
+        }
+      }
+    },
+    "launchAtLogin.status.requiresApproval" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approval required"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需要批准"
+          }
+        }
+      }
+    },
+    "launchAtLogin.status.unknown" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不可用"
+          }
+        }
+      }
+    },
+    "menuBar.display.iconOnly" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Icon Only"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "仅图标"
+          }
+        }
+      }
+    },
+    "menuBar.display.title" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menu Bar Display"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "菜单栏显示"
+          }
+        }
+      }
+    },
+    "menuBar.display.typing" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入量"
+          }
+        }
+      }
+    },
+    "menuBar.display.usage" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usage Time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用时间"
+          }
+        }
+      }
+    },
+    "menuBar.display.usageAndTyping" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usage + Typing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用时间 + 输入量"
+          }
+        }
+      }
+    },
+    "menuBar.openDashboard" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open DayTrace"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开 DayTrace"
+          }
+        }
+      }
+    },
+    "menuBar.quit" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit DayTrace"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "退出 DayTrace"
+          }
+        }
+      }
+    },
+    "menuBar.settings" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
+          }
+        }
+      }
+    },
+    "menuBar.today" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天"
+          }
+        }
+      }
+    },
+    "menuBar.typingValue" : {
+      "comment" : "Menu bar typing summary",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Typed characters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输入字符"
+          }
+        }
+      }
+    },
+    "persistence.status.degraded" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Degraded"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "降级"
+          }
+        }
+      }
+    },
+    "persistence.status.failed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unavailable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不可用"
+          }
+        }
+      }
+    },
+    "persistence.status.healthy" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Healthy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正常"
+          }
+        }
+      }
+    },
     "privacy.chrome" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1328,6 +1873,175 @@
         }
       }
     },
+    "settings.deleteData" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete All Activity Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除全部活动数据"
+          }
+        }
+      }
+    },
+    "settings.deleteData.cancel" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
+    },
+    "settings.deleteData.confirm" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除"
+          }
+        }
+      }
+    },
+    "settings.deleteData.confirmMessage" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This removes all saved usage and typing aggregates from this Mac."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这会删除此 Mac 上保存的全部使用和输入聚合数据。"
+          }
+        }
+      }
+    },
+    "settings.deleteData.confirmTitle" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete all activity data?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除全部活动数据？"
+          }
+        }
+      }
+    },
+    "settings.deleteFailed" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not delete data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法删除数据。"
+          }
+        }
+      }
+    },
+    "settings.deleteSucceeded" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activity data deleted."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "活动数据已删除。"
+          }
+        }
+      }
+    },
+    "settings.exportData" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export Aggregate Data…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出聚合数据…"
+          }
+        }
+      }
+    },
+    "settings.exportFailed" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not export data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法导出数据。"
+          }
+        }
+      }
+    },
+    "settings.exportSucceeded" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggregate data exported."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聚合数据已导出。"
+          }
+        }
+      }
+    },
     "settings.general" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -1358,6 +2072,73 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "输入监控"
+          }
+        }
+      }
+    },
+    "settings.launchAtLogin" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Launch DayTrace at Login"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "登录时启动 DayTrace"
+          }
+        }
+      }
+    },
+    "settings.launchAtLoginStatus" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "状态"
+          }
+        }
+      }
+    },
+    "settings.menuBar" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menu Bar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "菜单栏"
+          }
+        }
+      }
+    },
+    "settings.menuBarDisplay" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Display"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示内容"
           }
         }
       }
@@ -2030,6 +2811,40 @@
         }
       }
     },
+    "tab.dashboard" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dashboard"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "概览"
+          }
+        }
+      }
+    },
+    "tab.history" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史"
+          }
+        }
+      }
+    },
     "tracking.pause" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2354,7 +3169,6 @@
       }
     },
     "typingActivity.activeTyping" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2488,7 +3302,6 @@
       }
     },
     "typingActivity.estimatedWords" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2621,7 +3434,6 @@
       }
     },
     "typingActivity.sessions" : {
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -2752,6 +3564,330 @@
             "value" : "输入速度"
           }
         }
+      }
+    },
+    "dashboard.currentActivity.none" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No active app" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "当前没有活动应用" } }
+      }
+    },
+    "dashboard.currentActivity.session" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Current session" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "当前会话" } }
+      }
+    },
+    "dashboard.currentActivity.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Current Activity" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "当前活动" } }
+      }
+    },
+    "history.appDetail.subtitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Selected period" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "所选时间段" } }
+      }
+    },
+    "history.averageDaily" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Average per day" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "日均" } }
+      }
+    },
+    "history.categories.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Categories" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "分类" } }
+      }
+    },
+    "history.changes.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "What changed" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "变化摘要" } }
+      }
+    },
+    "history.comparison.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Compared with the previous period" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "与上一时间段相比" } }
+      }
+    },
+    "history.decreased" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Decreased" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "减少" } }
+      }
+    },
+    "history.heatmap.subtitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Daily usage over the last 30 days" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "过去 30 天的每日使用情况" } }
+      }
+    },
+    "health.appsSeen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Apps seen" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已记录应用" } }
+      }
+    },
+    "health.appsSeenLast30Days" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Apps seen (last 30 days)" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已记录应用（近 30 天）" } }
+      }
+    },
+    "health.chrome" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Chrome connection" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Chrome 连接" } }
+      }
+    },
+    "health.daysTracked" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Days tracked" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已记录天数" } }
+      }
+    },
+    "health.daysTrackedLast30Days" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Days recorded (last 30 days)" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已记录天数（近 30 天）" } }
+      }
+    },
+    "health.healthy" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Healthy" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正常" } }
+      }
+    },
+    "health.degraded" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Degraded" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已降级" } }
+      }
+    },
+    "health.lastCheckpoint" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Last checkpoint" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最近保存" } }
+      }
+    },
+    "health.persistence" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Persistence" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "数据保存" } }
+      }
+    },
+    "health.tracking" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Tracking" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "统计状态" } }
+      }
+    },
+    "health.unavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unavailable" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "不可用" } }
+      }
+    },
+    "health.websitesSeen" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Websites seen" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已记录网站" } }
+      }
+    },
+    "health.websitesSeenLast30Days" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Websites seen (last 30 days)" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已记录网站（近 30 天）" } }
+      }
+    },
+    "history.heatmap.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Usage rhythm" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "使用节奏" } }
+      }
+    },
+    "history.increased" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Increased" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "增加" } }
+      }
+    },
+    "history.range.last30Days" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "30 Days" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "30 天" } }
+      }
+    },
+    "history.shareOfChrome" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Share of Chrome usage" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "占 Chrome 使用时间" } }
+      }
+    },
+    "history.shareOfTotal" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Share of total usage" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "占总使用时间" } }
+      }
+    },
+    "history.websiteDetail.subtitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sanitized domain · selected period" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "清洗后的域名 · 所选时间段" } }
+      }
+    },
+    "settings.automaticBackups" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Automatic backups" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动备份" } }
+      }
+    },
+    "settings.backupFailed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Backup failed" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "备份失败" } }
+      }
+    },
+    "settings.backupNow" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Back Up Now" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "立即备份" } }
+      }
+    },
+    "settings.backupSucceeded" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Backup created" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "备份已创建" } }
+      }
+    },
+    "settings.data" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Data" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "数据" } }
+      }
+    },
+    "settings.dataWarning" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Changing database files manually may corrupt DayTrace data." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "手动修改数据库文件可能损坏 DayTrace 数据。" } }
+      }
+    },
+    "settings.privacy.neverStored" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Never stored" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "不会存储" } }
+      }
+    },
+    "settings.privacy.neverStoredDetail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Typed content, full URLs, page contents, and clipboard data." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入内容、完整 URL、网页内容和剪贴板数据。" } }
+      }
+    },
+    "settings.privacy.stored" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Stored locally" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "本地存储" } }
+      }
+    },
+    "settings.privacy.storedDetail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "App usage, sanitized website domains, and aggregate typing counts." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "应用使用时间、清洗后的网站域名和聚合输入计数。" } }
+      }
+    },
+    "settings.privacySummary" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Privacy summary" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "隐私摘要" } }
+      }
+    },
+    "settings.showDataLocation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show Data Location" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示数据位置" } }
+      }
+    },
+    "history.search" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search apps and websites" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "搜索应用和网站" } }
+      }
+    },
+    "history.search.empty" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No matching apps or websites" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "没有匹配的应用或网站" } }
+      }
+    },
+    "metadata.addCategory" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加" } }
+      }
+    },
+    "metadata.categories" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "App categories" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "应用分类" } }
+      }
+    },
+    "metadata.category" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "分类" } }
+      }
+    },
+    "metadata.categoryNote" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Categories are display metadata only and never change usage data." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "分类仅用于显示，不会改变使用数据。" } }
+      }
+    },
+    "metadata.deleteCategory" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除" } }
+      }
+    },
+    "metadata.favorites" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pinned" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已置顶" } }
+      }
+    },
+    "metadata.newCategory" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "New category" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "新分类" } }
+      }
+    },
+    "metadata.pin" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pin" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "置顶" } }
+      }
+    },
+    "metadata.renameCategory" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename category" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "重命名分类" } }
+      }
+    },
+    "metadata.uncategorized" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Uncategorized" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未分类" } }
+      }
+    },
+    "metadata.unpin" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unpin" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "取消置顶" } }
       }
     },
     "usage.websiteEmpty" : {

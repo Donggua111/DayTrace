@@ -313,6 +313,66 @@ Use the main DayTrace window after launching the current Debug build:
    unavailable. Confirm the user-facing explanation remains aggregate-only and
    no typed content is displayed.
 
+### Sprint 3 product-surface smoke tests
+
+Run these checks against an Apple Development-signed Debug build. They cover
+the new UI and data-management surfaces; the existing tracking, Input
+Monitoring, Chrome, lifecycle, and persistence regressions remain required.
+
+#### History
+
+1. Open the History tab and switch through Today, Yesterday, Last 7 Days,
+   This Week, and This Month.
+2. Confirm the total, app rows, sanitized website rows, and typing summary are
+   readable and sorted by aggregate value.
+3. With the app active, confirm today's current runtime is reflected before
+   the next checkpoint. Confirm switching tabs does not reset activity.
+
+Expected:
+- History reads the same daily aggregates as Dashboard.
+- Website totals remain nested under Chrome and do not increase total usage.
+- No URL, title, page content, key code, typed text, or raw event history is
+  shown.
+
+#### Menu bar and launch at login
+
+The menu bar's real-Mac live-refresh behavior remains pending manual
+validation; the static regression boundary is one long-lived `NSStatusItem`
+controller with no per-second persistence work or item recreation.
+
+1. Confirm the DayTrace menu bar item shows today's usage and tracking state.
+2. Use the menu bar to pause and resume tracking; confirm the Dashboard state
+   and timer agree.
+3. Change the menu bar display mode in Settings and confirm the label updates
+   without changing aggregates.
+4. Toggle Launch at Login in Settings. Confirm the native status row reports
+   the resulting state or clearly indicates that system approval is required.
+
+#### Export and delete data
+
+WARNING: Delete All Activity Data permanently deletes DayTrace activity
+history. Use only disposable Internal Beta test data, and export anything
+that must be kept before deleting.
+
+警告：Delete All Activity Data 会永久删除 DayTrace 活动历史。仅使用可丢弃的
+Internal Beta 测试数据；如需保留数据，请先导出。
+
+1. Generate a small amount of app, website, and typing activity, then choose
+   Export Aggregate Data and save the JSON file.
+2. Inspect the exported structure. It may contain aggregate durations,
+   sanitized domains, category counts, sessions, and metric version only.
+3. Choose Delete All Activity Data, read the confirmation, and confirm.
+
+Expected:
+- Export contains no typed text, key sequence, key code, URL, title, or page
+  content fields.
+- Delete clears Dashboard, History, and typing aggregates, then allows new
+  activity to be collected in the same process.
+- If an active interval exists at deletion time, it is discarded and new
+  activity starts from a fresh interval after deletion.
+- The stable App bundle ID, Native Messaging host, and Input Monitoring
+  identity are not changed by either action.
+
 ### Sprint 2B persistence smoke test
 
 Run these checks against an Apple Development-signed Debug build. The
@@ -415,3 +475,27 @@ The automated build may use `CODE_SIGNING_ALLOWED=NO` for compile and XCTest
 validation only. It is not a valid human Input Monitoring runtime. Manual
 permission and typing tests must launch the Apple Development-signed app from
 Xcode Run with the stable bundle identifier `com.daytrace.spike`.
+
+## 6. Insights & Control smoke test
+
+1. Open History and switch among Today, Yesterday, rolling 7 days, 30 days,
+   This Week, and This Month. Confirm totals remain finite and the usage-rhythm
+   heatmap shows one cell per included calendar day.
+2. Confirm the comparison section shows a signed absolute delta. Empty previous
+   periods must not produce Infinity or NaN.
+3. Click an App or sanitized website row to open its detail view. Confirm only
+   aggregate duration, share, and (for Apps) aggregate typing are shown.
+4. Use the History search field and confirm App/domain rows filter locally and
+   still open their detail view.
+5. Pin an App or website from its row context menu. Confirm it appears in the
+   Dashboard Pinned section and does not change totals.
+6. In Settings, add/rename/delete an App category and assign it from an App
+   row context menu. Confirm categories remain presentation metadata.
+7. In Settings → Data, use Back Up Now. Confirm a DayTrace JSON backup is
+   created under the user Application Support directory. If automatic backups
+   are enabled, repeated checkpoints on the same local day should not create
+   additional managed files; a failed backup must not leave a partial JSON
+   file. Automatic backups are off by default; restore is intentionally
+   deferred.
+8. In Settings → Privacy summary, confirm the stored/never-stored boundaries
+   remain explicit in English and Simplified Chinese.
