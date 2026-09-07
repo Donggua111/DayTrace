@@ -16,6 +16,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: DayTraceDesign.spaceL) {
                     header(at: context.date)
                     currentActivityCard(at: context.date)
+                    BackgroundCurrentActivityView(model: model, date: context.date)
                     favoritesCard(at: context.date)
                     appUsageCard(at: context.date)
                     TypingActivityView(
@@ -23,6 +24,7 @@ struct DashboardView: View {
                         languageRawValue: languageRawValue
                     )
                     websiteUsageCard(at: context.date)
+                    BackgroundActivityCard(model: model, date: context.date)
                 }
                 .frame(maxWidth: 920, alignment: .leading)
                 .padding(.horizontal, DayTraceDesign.spaceXL)

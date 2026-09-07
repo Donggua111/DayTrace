@@ -76,8 +76,8 @@ final class BackupManager: ObservableObject {
         do {
             try fileManager.createDirectory(at: backupDirectoryURL, withIntermediateDirectories: true)
             let envelope: [String: Any] = [
-                "backupVersion": 2,
-                "schemaVersion": 2,
+                "backupVersion": 3,
+                "schemaVersion": 3,
                 "createdAt": ISO8601DateFormatter().string(from: now),
                 "aggregates": try JSONSerialization.jsonObject(with: exported)
             ]

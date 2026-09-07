@@ -29,6 +29,7 @@ struct HistoryView: View {
                         onNext: { timelineDate = min(Calendar.autoupdatingCurrent.startOfDay(for: context.date), Calendar.autoupdatingCurrent.date(byAdding: .day, value: 1, to: timelineDate) ?? timelineDate) },
                         onToday: { timelineDate = Calendar.autoupdatingCurrent.startOfDay(for: context.date) }
                     )
+                    BackgroundActivityTimelineView(model: model, date: timelineDate, now: context.date)
                     comparisonSection(comparison: comparison)
                     heatmap(snapshot: heatmapSnapshot, asOf: context.date)
                     usageSection(snapshot: snapshot)

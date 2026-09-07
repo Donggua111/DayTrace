@@ -187,6 +187,10 @@ struct SettingsView: View {
                     .foregroundStyle(.red)
             }
 
+            Section("background.settings.title") {
+                BackgroundActivitySettingsContent(model: model)
+            }
+
             Section("metadata.categories") {
                 HStack {
                     TextField("metadata.newCategory", text: $newCategory)

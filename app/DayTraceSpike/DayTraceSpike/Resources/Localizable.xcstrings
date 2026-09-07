@@ -3992,6 +3992,138 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未归因的 Chrome 使用" } }
       }
     },
+    "background.activity.audioPlayback" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio playback" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "音频播放" } }
+      }
+    },
+    "background.activity.visibleSurface" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Visible activity" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "可见活动" } }
+      }
+    },
+    "background.current.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Active in the background" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "后台活动" } }
+      }
+    },
+    "background.current.note" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Background time is shown separately and never added to foreground usage." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "后台时间单独显示，不会计入前台使用时长。" } }
+      }
+    },
+    "background.dashboard.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Background Activity" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "后台活动" } }
+      }
+    },
+    "background.dashboard.note" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Detected activity that can continue while another app is in front." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "显示可在其他应用位于前台时继续的活动。" } }
+      }
+    },
+    "background.dashboard.empty" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No background activity recorded today." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "今天还没有后台活动记录。" } }
+      }
+    },
+    "background.timeline.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Background Timeline" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "后台时间线" } }
+      }
+    },
+    "background.timeline.note" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A separate lane for activity outside the foreground app." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "单独展示前台应用之外的活动。" } }
+      }
+    },
+    "background.timeline.empty" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No background intervals for this date." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "这一天没有后台活动区间。" } }
+      }
+    },
+    "background.settings.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Background Activity" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "后台活动" } }
+      }
+    },
+    "background.settings.enabled" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Track background activity" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "记录后台活动" } }
+      }
+    },
+    "background.settings.note" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Background intervals are stored separately from foreground usage and do not change daily totals." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "后台区间与前台使用分开保存，不会改变每日总时长。" } }
+      }
+    },
+    "background.settings.intervals" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Stored intervals" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已存区间" } }
+      }
+    },
+    "background.settings.delete" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Background History" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除后台活动历史" } }
+      }
+    },
+    "background.settings.deleteTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Background History?" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除后台活动历史？" } }
+      }
+    },
+    "background.settings.deleteMessage" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Only background activity intervals will be removed. Foreground usage and typing remain." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "只会删除后台活动区间，前台使用和输入统计会保留。" } }
+      }
+    },
+    "background.settings.detectorState" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Detector state" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "检测器状态" } }
+      }
+    },
+    "background.detector.active" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Active" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "活动中" } }
+      }
+    },
+    "background.detector.inactive" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Inactive" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未活动" } }
+      }
+    },
+    "background.detector.unavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unavailable" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "不可用" } }
+      }
+    },
+    "background.detector.notObserved" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Waiting for first check" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "等待首次检查" } }
+      }
+    },
     "usage.websiteEmpty" : {
       "extractionState" : "stale",
       "localizations" : {

@@ -173,6 +173,22 @@ history without deleting daily aggregates. Aggregate export remains compatible
 by default; detailed timeline export is opt-in and backups use a versioned
 envelope.
 
+### 5.1 Background Activity V1
+
+Background Activity is a separate interval stream for activity that may
+continue while another application is foreground. It is never added to Total
+Mac Usage, foreground app totals, Chrome website parent time, or typing
+metrics. The V1 surface is a compact Dashboard card and a parallel History
+lane; background intervals can be deleted independently.
+
+The first supported identities are NookX visible activity and NetEase audio
+playback. Detection uses public process/window metadata and public CoreAudio
+process state only. DayTrace does not read window content, audio samples,
+titles, URLs, or user input, and does not request Screen Recording,
+Accessibility, microphone, or other additional sensitive permissions. If the
+operating system cannot provide a reliable public signal, the detector remains
+unavailable rather than guessing.
+
 ## 6. Typing analytics
 
 Typing analytics has two layers.

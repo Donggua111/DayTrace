@@ -313,6 +313,33 @@ Use the main DayTrace window after launching the current Debug build:
    unavailable. Confirm the user-facing explanation remains aggregate-only and
    no typed content is displayed.
 
+### Background Activity V1 smoke test
+
+Background activity is intentionally a separate stream. It must never increase
+Today total, foreground app duration, Chrome website time, or typing metrics.
+
+1. Open Settings → Background Activity and confirm the global toggle plus the
+   NookX and NetEase detector toggles are present.
+2. Launch NookX and leave a relevant visible surface open while another app is
+   frontmost. Confirm the Dashboard card or History background lane shows
+   NookX only while that surface is visible.
+3. Play audio in NetEase while another app is frontmost. Confirm a separate
+   audio interval appears when the public CoreAudio process signal is available.
+4. Bring the detected app to the foreground. Confirm its background interval
+   closes while foreground usage continues independently.
+5. Pause tracking, lock the Mac, and sleep it. Confirm background intervals
+   stop in those states and resume only after normal tracking is active again.
+6. Turn the global or an individual detector toggle off. Confirm new background
+   time stops while existing records remain until explicitly deleted.
+7. Use Delete Background History and confirm foreground, website, and typing
+   values remain unchanged. Detailed export may contain interval metadata only;
+   it must not contain audio, window content, URLs, titles, or typed text.
+
+If a detector cannot obtain a reliable public signal, `unavailable` is expected;
+the app must not infer activity from process existence alone and must not ask
+for Screen Recording, Accessibility, Full Disk Access, microphone, or private
+media APIs.
+
 ### Sprint 3 product-surface smoke tests
 
 Run these checks against an Apple Development-signed Debug build. They cover

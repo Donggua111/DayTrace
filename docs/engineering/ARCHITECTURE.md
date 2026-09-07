@@ -59,6 +59,17 @@ Timeline V2 is a separate detail layer and never replaces the daily records:
   duration, open-state recovery flag, Chrome identity, sanitized domain, and
   optional parent app interval ID.
 
+Background Activity V1 is a separate interval-only stream:
+
+- `BackgroundActivityIntervalRecord`: stable interval ID, local `dateKey`,
+  start/end, duration, open-state recovery flag, app identity, activity kind,
+  and detector identifier.
+
+Background intervals are never merged into foreground app totals, Chrome
+website parent time, typing metrics, or comparisons. The selected-day History
+lane and Dashboard card derive per-app/per-kind summaries from these intervals;
+there is no duplicate daily background aggregate entity.
+
 Only valid positive intervals are persisted. Intervals are split at local
 midnight and never cross a stored `dateKey`. One open interval per active
 stream is checkpointed in place; transitions close the current row and create
@@ -75,6 +86,16 @@ website reconciliation.
 All durations are stored as `Double` seconds. Intervals crossing a local
 midnight are split into the relevant local calendar day keys. Website time is
 stored separately and never added to total app usage.
+
+`BackgroundActivityCoordinator` uses one shared low-frequency detector poll and
+the existing checkpoint path. It does not add a second persistence loop or
+per-second Core Data writes. NookX (`com.monsterwl.NookX`) is inspected through
+public visible-window metadata only; NetEase Cloud Music
+(`com.netease.163music`) uses the public CoreAudio process output-running
+property. No titles, coordinates, pixels, window content, audio samples, or
+private MediaRemote API are read. Process existence alone is not activity, and
+an unavailable signal remains unavailable. No new Screen Recording,
+Accessibility, Full Disk Access, microphone, or network permission is added.
 
 Checkpoints run periodically while the app is active and during app
 termination. Upserts are idempotent, so repeated checkpoints do not duplicate
@@ -253,6 +274,11 @@ production/legacy persistence dataset exists to migrate. Duplicate logical
 rows, when encountered during load/checkpoint, are normalized to the greatest
 existing aggregate rather than blindly summed.
 
+The current schema adds `BackgroundActivityIntervalRecord` as an additive
+lightweight migration. The pre-background fixture preserves daily aggregates
+and Timeline V2 intervals while producing an empty background stream. No
+duplicate migration ledger or separate persistence repository is introduced.
+
 ## UI and localization
 
 The current App uses native SwiftUI `WindowGroup` and `Settings` scenes.
@@ -295,6 +321,11 @@ the user Application Support directory and prune only DayTrace-managed files.
 Restore/import is intentionally deferred until transactional replacement and
 rollback semantics are specified.
 
+Detailed export additionally includes background interval metadata only when
+requested. Background-only deletion removes only the background interval
+entity; Delete All removes it with the rest of local activity data. The backup
+envelope is version 3 to reflect this additive detailed payload.
+
 Dashboard refreshes reuse one live snapshot per displayed timestamp and cache
 resolved application icons. These are presentation optimizations only; they do
 not alter tracker event handling or persisted values.
@@ -318,7 +349,8 @@ Generated build output and Xcode user state are excluded by `.gitignore`.
 The following are not part of this architecture freeze:
 
 - per-entity event-level charts and trend persistence,
-- media/background activity exceptions,
+- additional background detector integrations beyond the V1 NookX and NetEase
+  identities,
 - automatic category rules and privacy zones,
 - account or cloud sync,
 - public networking,

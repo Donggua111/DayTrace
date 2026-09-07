@@ -30,6 +30,7 @@ baseline without changing the validated tracking or communication behavior.
 - Aggregate-only JSON export and an explicit delete-all-data flow
 - Optional logical aggregate backups with deterministic retention; restore is intentionally deferred
 - Detailed Timeline V2 with local app intervals and sanitized Chrome website child intervals
+- Background Activity V1 with separate interval lanes for supported NookX visible activity and NetEase audio playback
 
 Core Data + SQLite local persistence is part of the implemented Internal Beta
 core. Daily aggregates remain canonical for totals and analytics; Timeline V2
@@ -37,9 +38,17 @@ adds a separate interval history for chronological detail without retaining
 raw activity events.
 
 Metadata such as pins and App categories is stored separately in UserDefaults
-and never changes usage identity or historical aggregate values. Backup files
-contain only the existing aggregate export envelope; typed content, full URLs,
-page content, and clipboard data are not stored.
+and never changes usage identity or historical aggregate values. Detailed
+backups may include background interval metadata when explicitly requested;
+typed content, full URLs, page content, audio samples, window content, and
+clipboard data are not stored.
+
+Background Activity V1 is a separate interval-only stream. It never adds time
+to foreground totals, Chrome website parents, or typing metrics. NookX uses
+public visible-window metadata, while NetEase uses a public CoreAudio process
+output-running property. Detector availability is reported honestly when the
+operating system cannot provide a reliable signal; no new sensitive permission
+or private media API is used.
 
 ## Repository structure
 

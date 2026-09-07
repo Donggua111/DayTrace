@@ -1491,8 +1491,8 @@ final class DayTraceTests: XCTestCase {
         XCTAssertTrue(BackupManager.isManagedBackupFilename(first.lastPathComponent))
 
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: first)) as? [String: Any])
-        XCTAssertEqual(object["backupVersion"] as? Int, 2)
-        XCTAssertEqual(object["schemaVersion"] as? Int, 2)
+        XCTAssertEqual(object["backupVersion"] as? Int, 3)
+        XCTAssertEqual(object["schemaVersion"] as? Int, 3)
         XCTAssertNotNil(object["createdAt"] as? String)
         XCTAssertNotNil(object["aggregates"] as? [String: Any])
         let encoded = String(data: try Data(contentsOf: first), encoding: .utf8) ?? ""
@@ -1920,11 +1920,13 @@ final class DayTraceTests: XCTestCase {
         XCTAssertFalse(text.contains("keyCode")); XCTAssertFalse(text.contains("fullURL")); XCTAssertFalse(text.contains("content"))
     }
 
-    func testBackupVersionTwoAndLegacyVersionDetection() throws {
+    func testBackupVersionThreeAndLegacyVersionDetection() throws {
         let v1 = try JSONSerialization.data(withJSONObject: ["backupVersion": 1])
         let v2 = try JSONSerialization.data(withJSONObject: ["backupVersion": 2])
+        let v3 = try JSONSerialization.data(withJSONObject: ["backupVersion": 3])
         XCTAssertEqual(BackupManager.detectBackupVersion(from: v1), 1)
         XCTAssertEqual(BackupManager.detectBackupVersion(from: v2), 2)
+        XCTAssertEqual(BackupManager.detectBackupVersion(from: v3), 3)
     }
 
     func testPreTimelineAggregateStoreMigratesWithEmptyIntervalEntities() throws {
@@ -2006,5 +2008,313 @@ final class DayTraceTests: XCTestCase {
         XCTAssertEqual(store.snapshot(at: date).typingAppMetricsByApp[legacyApp]?.typedCharacters, 13)
         XCTAssertTrue(store.timeline(for: date).appIntervals.isEmpty)
         XCTAssertTrue(store.timeline(for: date).websiteIntervals.isEmpty)
+        XCTAssertTrue(store.backgroundSummary(for: date).intervals.isEmpty)
     }
+
+    func testBackgroundDetectorsUseOnlyPublicActivitySignals() {
+        let app = AppIdentity(bundleIdentifier: "com.example.background", displayName: "Background App")
+        let lookup = BackgroundTestProcessLookup(processIDs: [42])
+        let audio = BackgroundTestAudioProvider(value: true)
+        let surface = BackgroundTestSurfaceProvider(value: true)
+        let audioDetector = ProcessAudioActivityDetector(
+            identifier: "audio",
+            app: app,
+            processLookup: lookup,
+            audioStateProvider: audio
+        )
+        let surfaceDetector = VisibleSurfaceActivityDetector(
+            identifier: "surface",
+            app: app,
+            processLookup: lookup,
+            surfaceProvider: surface
+        )
+
+        XCTAssertTrue(audioDetector.inspect(at: Date()).isActive)
+        XCTAssertTrue(surfaceDetector.inspect(at: Date()).isActive)
+        XCTAssertEqual(audio.inspectCount, 1)
+        XCTAssertEqual(surface.inspectCount, 1)
+    }
+
+    func testBackgroundActivityPersistsWithoutChangingForegroundTotal() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.foreground", displayName: "Foreground")
+        let background = AppIdentity(bundleIdentifier: "com.example.audio", displayName: "Audio App")
+        let start = makeDate(day: 30, hour: 10, minute: 0, second: 0, calendar: calendar)
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        let snapshot = BackgroundDetectorSnapshot(
+            identifier: "audio",
+            app: background,
+            activityKind: .audioPlayback,
+            state: .active(processRunning: true),
+            observedAt: start
+        )
+
+        XCTAssertTrue(store.updateBackgroundActivity(
+            snapshots: [snapshot], foregroundApp: foreground, trackingState: .awake,
+            globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start
+        ))
+        XCTAssertTrue(store.checkpoint(
+            foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(30),
+            backgroundObservations: [snapshot], backgroundActivityEnabled: true,
+            enabledBackgroundDetectorIdentifiers: ["audio"]
+        ))
+
+        let summary = store.backgroundSummary(for: start, now: start.addingTimeInterval(30))
+        XCTAssertEqual(summary.intervals.count, 1)
+        XCTAssertEqual(summary.durationsByApp[background] ?? 0, 30, accuracy: 0.001)
+        XCTAssertEqual(store.snapshot(at: start.addingTimeInterval(30)).totalUsage, 30, accuracy: 0.001)
+    }
+
+    func testBackgroundActivitySupportsOverlappingDetectorsAndExcludesForegroundApp() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.editor", displayName: "Editor")
+        let first = AppIdentity(bundleIdentifier: "com.example.audio", displayName: "Audio")
+        let second = AppIdentity(bundleIdentifier: "com.example.video", displayName: "Video")
+        let start = makeDate(day: 30, hour: 11, minute: 0, second: 0, calendar: calendar)
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        let snapshots = [
+            BackgroundDetectorSnapshot(identifier: "audio", app: first, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start),
+            BackgroundDetectorSnapshot(identifier: "video", app: second, activityKind: .visibleSurface, state: .active(processRunning: true), observedAt: start)
+        ]
+        _ = store.updateBackgroundActivity(snapshots: snapshots, foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio", "video"], at: start)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(12), backgroundObservations: snapshots, backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio", "video"]))
+
+        let summary = store.backgroundSummary(for: start, now: start.addingTimeInterval(12))
+        XCTAssertEqual(summary.intervals.count, 2)
+        XCTAssertEqual(summary.durationsByApp[first] ?? 0, 12, accuracy: 0.001)
+        XCTAssertEqual(summary.durationsByApp[second] ?? 0, 12, accuracy: 0.001)
+        XCTAssertEqual(store.snapshot(at: start.addingTimeInterval(12)).totalUsage, 12, accuracy: 0.001)
+    }
+
+    func testBackgroundActivityClosesOnLockAndResumesAfterUnlock() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.editor.lock", displayName: "Editor")
+        let background = AppIdentity(bundleIdentifier: "com.example.audio.lock", displayName: "Audio")
+        let start = makeDate(day: 30, hour: 12, minute: 0, second: 0, calendar: calendar)
+        let observation = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start)
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        tracker.handleSystemEventForTesting(.lock, at: start.addingTimeInterval(10))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        tracker.handleSystemEventForTesting(.unlock, at: start.addingTimeInterval(20), frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start.addingTimeInterval(20))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(30), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+
+        let intervals = store.backgroundSummary(for: start, now: start.addingTimeInterval(30)).intervals
+        XCTAssertEqual(intervals.count, 2)
+        XCTAssertEqual(intervals.map(\.duration).reduce(0, +), 20, accuracy: 0.001)
+        XCTAssertTrue(intervals.allSatisfy { $0.end <= start.addingTimeInterval(30) })
+    }
+
+    func testBackgroundActivitySplitsAtMidnight() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.midnight.foreground", displayName: "Editor")
+        let background = AppIdentity(bundleIdentifier: "com.example.midnight.audio", displayName: "Audio")
+        let start = makeDate(day: 30, hour: 23, minute: 59, second: 50, calendar: calendar)
+        let end = makeDate(day: 31, hour: 0, minute: 0, second: 10, calendar: calendar)
+        let observation = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start)
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: end, backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+
+        XCTAssertEqual(store.backgroundSummary(for: start, now: end).intervals.map(\.duration).reduce(0, +), 10, accuracy: 0.001)
+        XCTAssertEqual(store.backgroundSummary(for: end, now: end).intervals.map(\.duration).reduce(0, +), 10, accuracy: 0.001)
+    }
+
+    func testBackgroundActivityDeleteRemovesOnlyBackgroundRecords() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.delete.foreground", displayName: "Editor")
+        let background = AppIdentity(bundleIdentifier: "com.example.delete.audio", displayName: "Audio")
+        let start = makeDate(day: 30, hour: 14, minute: 0, second: 0, calendar: calendar)
+        store.seedAppRecordForTesting(at: start, app: foreground, duration: 25)
+        store.seedAppIntervalForTesting(app: foreground, start: start, end: start.addingTimeInterval(25))
+        let observation = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start)
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(5), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        XCTAssertTrue(store.deleteBackgroundActivityHistory())
+        XCTAssertTrue(store.backgroundSummary(for: start).intervals.isEmpty)
+        XCTAssertEqual(store.snapshot(at: start).appUsageByApp[foreground] ?? 0, 30, accuracy: 0.001)
+    }
+
+    func testBackgroundExportContainsIntervalsWithoutSensitiveContent() throws {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let background = AppIdentity(bundleIdentifier: "com.example.export.audio", displayName: "Audio")
+        let start = makeDate(day: 30, hour: 15, minute: 0, second: 0, calendar: calendar)
+        store.seedBackgroundIntervalForTesting(app: background, activityKind: .audioPlayback, detectorIdentifier: "audio", start: start, end: start.addingTimeInterval(8))
+        let data = try XCTUnwrap(store.exportAggregatesJSON(includeDetailedTimeline: true))
+        let text = String(decoding: data, as: UTF8.self)
+        XCTAssertTrue(text.contains("backgroundIntervals"))
+        XCTAssertFalse(text.contains("keyCode"))
+        XCTAssertFalse(text.contains("fullURL"))
+        XCTAssertFalse(text.contains("content"))
+    }
+
+    func testBackgroundOpenIntervalRecoversClosedAfterRelaunch() throws {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DayTrace-background-recovery-\(UUID().uuidString).sqlite")
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + "-shm"))
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + "-wal"))
+        }
+        let start = makeDate(day: 30, hour: 16, minute: 0, second: 0, calendar: calendar)
+        let end = start.addingTimeInterval(12)
+        let app = AppIdentity(bundleIdentifier: "com.example.recovery.audio", displayName: "Audio")
+        do {
+            let first = UsageStore(storeURL: url, calendarProvider: { calendar })
+            first.seedBackgroundIntervalForTesting(app: app, activityKind: .audioPlayback, detectorIdentifier: "audio", start: start, end: end, isOpen: true)
+        }
+        let relaunched = UsageStore(storeURL: url, calendarProvider: { calendar })
+        let interval = try XCTUnwrap(relaunched.backgroundSummary(for: start, now: end).intervals.first)
+        XCTAssertFalse(interval.isOpen)
+        XCTAssertEqual(interval.duration, 12, accuracy: 0.001)
+    }
+
+    func testTimelineV2StoreMigratesAdditivelyWithEmptyBackgroundStream() throws {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DayTrace-background-migration-\(UUID().uuidString).sqlite")
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + "-shm"))
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + "-wal"))
+        }
+        let model = UsageStoreModel.makePreBackground()
+        model.entities.forEach { $0.managedObjectClassName = "NSManagedObject" }
+        let date = makeDate(day: 30, hour: 17, minute: 0, second: 0, calendar: calendar)
+        let app = AppIdentity(bundleIdentifier: "com.example.migration.app", displayName: "Migration App")
+        do {
+            let container = NSPersistentContainer(name: "DayTraceTimelineV2", managedObjectModel: model)
+            try container.persistentStoreCoordinator.addPersistentStore(ofType: NSSQLiteStoreType, configurationName: nil, at: url, options: nil)
+            let context = container.viewContext
+            guard let appEntity = model.entities.first(where: { $0.name == "AppUsageDailyRecord" }),
+                  let websiteEntity = model.entities.first(where: { $0.name == "WebsiteUsageDailyRecord" }),
+                  let typingEntity = model.entities.first(where: { $0.name == "TypingDailyRecord" }),
+                  let appIntervalEntity = model.entities.first(where: { $0.name == "AppUsageIntervalRecord" }),
+                  let websiteIntervalEntity = model.entities.first(where: { $0.name == "WebsiteUsageIntervalRecord" }) else {
+                XCTFail("Expected the Timeline V2 migration fixture entities")
+                return
+            }
+            let appRecord = NSManagedObject(entity: appEntity, insertInto: context)
+            appRecord.setValue("2026-08-30", forKey: "dateKey")
+            appRecord.setValue(app.bundleIdentifier, forKey: "bundleIdentifier")
+            appRecord.setValue(app.displayName, forKey: "displayName")
+            appRecord.setValue(20.0, forKey: "durationSeconds")
+            let websiteRecord = NSManagedObject(entity: websiteEntity, insertInto: context)
+            websiteRecord.setValue("2026-08-30", forKey: "dateKey")
+            websiteRecord.setValue("com.google.Chrome", forKey: "browserBundleIdentifier")
+            websiteRecord.setValue("example.com", forKey: "domain")
+            websiteRecord.setValue(8.0, forKey: "durationSeconds")
+            let typingRecord = NSManagedObject(entity: typingEntity, insertInto: context)
+            typingRecord.setValue("2026-08-30", forKey: "dateKey")
+            typingRecord.setValue(4, forKey: "englishCharacters")
+            typingRecord.setValue(1, forKey: "numberCharacters")
+            typingRecord.setValue(1, forKey: "symbolCharacters")
+            typingRecord.setValue(1, forKey: "spaceCharacters")
+            typingRecord.setValue(1, forKey: "typingSessions")
+            typingRecord.setValue(2.0, forKey: "activeTypingDurationSeconds")
+            typingRecord.setValue(1, forKey: "metricVersion")
+            let appInterval = NSManagedObject(entity: appIntervalEntity, insertInto: context)
+            appInterval.setValue("legacy-app-interval", forKey: "idString")
+            appInterval.setValue("2026-08-30", forKey: "dateKey")
+            appInterval.setValue(date, forKey: "startAt")
+            appInterval.setValue(date.addingTimeInterval(10), forKey: "endAt")
+            appInterval.setValue(10.0, forKey: "durationSeconds")
+            appInterval.setValue(false, forKey: "isOpen")
+            appInterval.setValue(app.bundleIdentifier, forKey: "bundleIdentifier")
+            appInterval.setValue(app.displayName, forKey: "displayName")
+            let websiteInterval = NSManagedObject(entity: websiteIntervalEntity, insertInto: context)
+            websiteInterval.setValue("legacy-website-interval", forKey: "idString")
+            websiteInterval.setValue("2026-08-30", forKey: "dateKey")
+            websiteInterval.setValue(date, forKey: "startAt")
+            websiteInterval.setValue(date.addingTimeInterval(5), forKey: "endAt")
+            websiteInterval.setValue(5.0, forKey: "durationSeconds")
+            websiteInterval.setValue(false, forKey: "isOpen")
+            websiteInterval.setValue("com.google.Chrome", forKey: "browserBundleIdentifier")
+            websiteInterval.setValue("example.com", forKey: "domain")
+            try context.save()
+        }
+        let migrated = UsageStore(storeURL: url, calendarProvider: { calendar })
+        XCTAssertTrue(migrated.status.isReady)
+        XCTAssertEqual(migrated.timeline(for: date).appIntervals.count, 1)
+        XCTAssertEqual(migrated.timeline(for: date).websiteIntervals.count, 1)
+        XCTAssertEqual(migrated.snapshot(at: date).appUsageByApp[app] ?? 0, 20, accuracy: 0.001)
+        XCTAssertTrue(migrated.backgroundSummary(for: date).intervals.isEmpty)
+    }
+
+    func testBackgroundSaveFailureRetriesWithStableSegmentID() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        var shouldFail = true
+        var failedID: String?
+        let store = UsageStore(
+            inMemory: true,
+            calendarProvider: { calendar },
+            saveHandler: { context in
+                if shouldFail {
+                    shouldFail = false
+                    failedID = try? context.fetch(BackgroundActivityIntervalRecord.fetchRequest()).first?.idString
+                    throw NSError(domain: "DayTraceTests", code: 100)
+                }
+                try context.save()
+            }
+        )
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.retry.foreground", displayName: "Editor")
+        let background = AppIdentity(bundleIdentifier: "com.example.retry.background", displayName: "Audio")
+        let start = makeDate(day: 30, hour: 18, minute: 0, second: 0, calendar: calendar)
+        let observation = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start)
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start)
+        XCTAssertFalse(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        XCTAssertNotNil(failedID)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        let intervals = store.backgroundSummary(for: start, now: start.addingTimeInterval(10)).intervals
+        XCTAssertEqual(intervals.count, 1)
+        XCTAssertEqual(intervals.first?.id, failedID)
+        XCTAssertEqual(intervals.first?.duration ?? 0, 10, accuracy: 0.001)
+    }
+}
+
+private final class BackgroundTestProcessLookup: BackgroundProcessLookup {
+    let processIDs: [pid_t]
+    init(processIDs: [pid_t]) { self.processIDs = processIDs }
+    func processIDs(for bundleIdentifier: String) -> [pid_t] { processIDs }
+}
+
+private final class BackgroundTestAudioProvider: ProcessAudioStateProvider {
+    let value: Bool?
+    private(set) var inspectCount = 0
+    init(value: Bool?) { self.value = value }
+    func outputIsRunning(for processID: pid_t) -> Bool? { inspectCount += 1; return value }
+}
+
+private final class BackgroundTestSurfaceProvider: VisibleSurfaceProvider {
+    let value: Bool
+    private(set) var inspectCount = 0
+    init(value: Bool) { self.value = value }
+    func hasRelevantSurface(for processID: pid_t) -> Bool { inspectCount += 1; return value }
 }

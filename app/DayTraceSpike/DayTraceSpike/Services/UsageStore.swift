@@ -247,6 +247,7 @@ final class UsageStore: ObservableObject {
     private var foregroundProgressByInterval: [String: TimeInterval] = [:]
     private var domainProgressByInterval: [String: TimeInterval] = [:]
     private var timelineRuntime = TimelineRuntimeState()
+    private var backgroundRuntime = BackgroundRuntimeState()
 
     init(
         storeURL: URL? = nil,
@@ -288,6 +289,7 @@ final class UsageStore: ObservableObject {
         }
 
         recoverOpenTimelineRecords()
+        recoverOpenBackgroundActivityRecords()
 
         loadBaseSnapshot(for: DayTraceDateKey.key(for: Date(), calendar: calendar))
     }
@@ -461,6 +463,88 @@ final class UsageStore: ObservableObject {
         )
     }
 
+    func backgroundSummary(for date: Date, now: Date = Date()) -> BackgroundActivitySummary {
+        let dayKey = DayTraceDateKey.key(for: date, calendar: calendar)
+        guard status.isReady else { return .empty }
+        let request = BackgroundActivityIntervalRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "dateKey == %@", dayKey)
+        var intervals = (try? context.fetch(request))?.compactMap { backgroundInterval(from: $0, now: now) } ?? []
+        if dayKey == DayTraceDateKey.key(for: now, calendar: calendar) {
+            intervals.append(contentsOf: backgroundRuntime.liveIntervals(at: now, dateKey: dayKey, calendar: calendar))
+        }
+        intervals = Array(Dictionary(grouping: intervals, by: \.id).values.compactMap { records in
+            records.max { lhs, rhs in
+                if lhs.end != rhs.end { return lhs.end < rhs.end }
+                return !lhs.isOpen && rhs.isOpen
+            }
+        }).sorted { $0.start < $1.start }
+        var durationsByApp: [AppIdentity: TimeInterval] = [:]
+        var durationsByKind: [BackgroundActivityKind: TimeInterval] = [:]
+        for interval in intervals {
+            durationsByApp[interval.app, default: 0] += interval.duration
+            durationsByKind[interval.activityKind, default: 0] += interval.duration
+        }
+        return BackgroundActivitySummary(intervals: intervals, durationsByApp: durationsByApp, durationsByKind: durationsByKind)
+    }
+
+    func backgroundDataStatistics() -> BackgroundDataStatistics {
+        guard status.isReady else { return BackgroundDataStatistics(intervalCount: 0, startDate: nil) }
+        let records = (try? context.fetch(BackgroundActivityIntervalRecord.fetchRequest())) ?? []
+        return BackgroundDataStatistics(intervalCount: records.count, startDate: records.map(\.startAt).min())
+    }
+
+    @discardableResult
+    func updateBackgroundActivity(
+        snapshots: [BackgroundDetectorSnapshot],
+        foregroundApp: AppIdentity?,
+        trackingState: TrackingSystemState,
+        globallyEnabled: Bool,
+        enabledDetectorIdentifiers: Set<String>,
+        at date: Date
+    ) -> Bool {
+        let canRecord = globallyEnabled && trackingState == .awake
+        let desired = Set(snapshots.compactMap { snapshot -> String? in
+            guard canRecord,
+                  enabledDetectorIdentifiers.contains(snapshot.identifier),
+                  snapshot.isActive,
+                  snapshot.app.bundleIdentifier != foregroundApp?.bundleIdentifier else { return nil }
+            return snapshot.identifier
+        })
+        var transitioned = false
+        let openActivities = backgroundRuntime.openByDetector
+        for (identifier, active) in openActivities {
+            guard !desired.contains(identifier) else { continue }
+            backgroundRuntime.closed.append(active.closed(at: date))
+            backgroundRuntime.openByDetector.removeValue(forKey: identifier)
+            transitioned = true
+        }
+        for snapshot in snapshots where desired.contains(snapshot.identifier) {
+            if var active = backgroundRuntime.openByDetector[snapshot.identifier] {
+                active.end = max(active.end, date)
+                active.app = snapshot.app
+                backgroundRuntime.openByDetector[snapshot.identifier] = active
+            } else {
+                backgroundRuntime.openByDetector[snapshot.identifier] = BackgroundRuntimeActivity(
+                    sourceID: UUID().uuidString,
+                    detectorIdentifier: snapshot.identifier,
+                    app: snapshot.app,
+                    activityKind: snapshot.activityKind,
+                    start: date,
+                    end: date
+                )
+                transitioned = true
+            }
+        }
+        return transitioned
+    }
+
+    func closeBackgroundActivityIntervals(at date: Date) {
+        for active in backgroundRuntime.openByDetector.values {
+            backgroundRuntime.closed.append(active.closed(at: date))
+        }
+        backgroundRuntime.openByDetector.removeAll()
+    }
+
     @discardableResult
     func deleteTimelineHistory(at date: Date = Date()) -> Bool {
         guard status.isReady else { return false }
@@ -606,12 +690,16 @@ final class UsageStore: ObservableObject {
         if includeDetailedTimeline {
             let intervalApps = (try? context.fetch(AppUsageIntervalRecord.fetchRequest())) ?? []
             let intervalWebsites = (try? context.fetch(WebsiteUsageIntervalRecord.fetchRequest())) ?? []
+            let backgroundIntervals = (try? context.fetch(BackgroundActivityIntervalRecord.fetchRequest())) ?? []
             object["detailedTimeline"] = [
                 "apps": intervalApps.sorted { $0.startAt < $1.startAt }.map {
                     ["date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "bundleIdentifier": $0.bundleIdentifier, "displayName": $0.displayName]
                 },
                 "websites": intervalWebsites.sorted { $0.startAt < $1.startAt }.map {
                     ["date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "browser": $0.browserBundleIdentifier, "domain": $0.domain]
+                },
+                "backgroundIntervals": backgroundIntervals.sorted { $0.startAt < $1.startAt }.map {
+                    ["date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "bundleIdentifier": $0.bundleIdentifier, "displayName": $0.displayName, "activityKind": $0.activityKindRawValue]
                 }
             ]
         }
@@ -628,7 +716,8 @@ final class UsageStore: ObservableObject {
             "TypingDailyRecord",
             "TypingAppDailyRecord",
             "AppUsageIntervalRecord",
-            "WebsiteUsageIntervalRecord"
+            "WebsiteUsageIntervalRecord",
+            "BackgroundActivityIntervalRecord"
         ]
 
         do {
@@ -650,9 +739,28 @@ final class UsageStore: ObservableObject {
             foregroundProgressByInterval.removeAll()
             domainProgressByInterval.removeAll()
             timelineRuntime = TimelineRuntimeState(anchorDate: Date())
+            backgroundRuntime = BackgroundRuntimeState(anchorDate: Date())
             lastCheckpointAt = nil
             revision += 1
             status = .ready
+            return true
+        } catch {
+            context.rollback()
+            status = .degraded(error.localizedDescription)
+            revision += 1
+            return false
+        }
+    }
+
+    @discardableResult
+    func deleteBackgroundActivityHistory() -> Bool {
+        guard status.isReady else { return false }
+        do {
+            let records = try context.fetch(BackgroundActivityIntervalRecord.fetchRequest())
+            records.forEach(context.delete)
+            try saveContext()
+            backgroundRuntime = BackgroundRuntimeState(anchorDate: Date())
+            revision += 1
             return true
         } catch {
             context.rollback()
@@ -750,14 +858,41 @@ final class UsageStore: ObservableObject {
         baseSnapshotsByDay.removeValue(forKey: dayKey)
     }
 
+    func seedAppRecordForTesting(at date: Date, app: AppIdentity, duration: TimeInterval) {
+        guard status.isReady else { return }
+        let dayKey = DayTraceDateKey.key(for: date, calendar: calendar)
+        let record = AppUsageDailyRecord(context: context)
+        record.dateKey = dayKey
+        record.bundleIdentifier = app.bundleIdentifier
+        record.displayName = app.displayName
+        record.durationSeconds = max(0, duration)
+        try? context.save()
+        loadedDayKeys.remove(dayKey)
+        baseSnapshotsByDay.removeValue(forKey: dayKey)
+    }
+
     @discardableResult
     func checkpoint(
         foregroundTracker: ForegroundTracker,
         domainTracker: DomainTracker,
         at date: Date = Date(),
         timelineEnabled: Bool = true,
-        finalizeTimeline: Bool = false
+        finalizeTimeline: Bool = false,
+        backgroundObservations: [BackgroundDetectorSnapshot] = [],
+        backgroundActivityEnabled: Bool = false,
+        enabledBackgroundDetectorIdentifiers: Set<String> = [],
+        finalizeBackgroundActivity: Bool = false
     ) -> Bool {
+        if !backgroundObservations.isEmpty || backgroundActivityEnabled || !enabledBackgroundDetectorIdentifiers.isEmpty || finalizeBackgroundActivity {
+            _ = updateBackgroundActivity(
+                snapshots: backgroundObservations,
+                foregroundApp: foregroundTracker.currentApp,
+                trackingState: foregroundTracker.isTracking ? foregroundTracker.systemState : .paused,
+                globallyEnabled: backgroundActivityEnabled,
+                enabledDetectorIdentifiers: enabledBackgroundDetectorIdentifiers,
+                at: date
+            )
+        }
         var candidateForegroundProgress = foregroundProgressByInterval
         var candidateDomainProgress = domainProgressByInterval
         var candidateAppDurations = runtimeAppDurationsByDay
@@ -776,10 +911,12 @@ final class UsageStore: ObservableObject {
             appDurations: candidateAppDurations,
             domainDurations: candidateDomainDurations,
             timelineState: timelineRuntime,
+            backgroundState: backgroundRuntime,
             foregroundTracker: foregroundTracker,
             domainTracker: domainTracker,
             timelineEnabled: timelineEnabled,
-            finalizeTimeline: finalizeTimeline
+            finalizeTimeline: finalizeTimeline,
+            finalizeBackgroundActivity: finalizeBackgroundActivity
         ) {
             // A persistence cursor is committed only after context.save()
             // succeeds. A failed save leaves the prior cursor and runtime
@@ -844,6 +981,30 @@ final class UsageStore: ObservableObject {
         try? context.save()
     }
 
+    func seedBackgroundIntervalForTesting(
+        id: String = UUID().uuidString,
+        app: AppIdentity,
+        activityKind: BackgroundActivityKind,
+        detectorIdentifier: String,
+        start: Date,
+        end: Date,
+        isOpen: Bool = false
+    ) {
+        guard let valid = TimelineIntervalNormalizer.validated(start: start, end: end) else { return }
+        let record = fetchBackgroundInterval(id: id) ?? BackgroundActivityIntervalRecord(context: context)
+        record.idString = id
+        record.dateKey = DayTraceDateKey.key(for: start, calendar: calendar)
+        record.startAt = valid.start
+        record.endAt = valid.end
+        record.durationSeconds = valid.duration
+        record.isOpen = isOpen
+        record.bundleIdentifier = app.bundleIdentifier
+        record.displayName = app.displayName
+        record.activityKindRawValue = activityKind.rawValue
+        record.detectorIdentifier = detectorIdentifier
+        try? context.save()
+    }
+
     private func fetchAppInterval(id: String) -> AppUsageIntervalRecord? {
         let request = AppUsageIntervalRecord.fetchRequest()
         request.predicate = NSPredicate(format: "idString == %@", id)
@@ -886,6 +1047,14 @@ final class UsageStore: ObservableObject {
         guard !apps.isEmpty || !websites.isEmpty else { return }
         apps.forEach { $0.isOpen = false }
         websites.forEach { $0.isOpen = false }
+        do { try saveContext() } catch { context.rollback(); status = .degraded(error.localizedDescription) }
+    }
+
+    private func recoverOpenBackgroundActivityRecords() {
+        guard status.isReady else { return }
+        let records = (try? context.fetch(BackgroundActivityIntervalRecord.fetchRequest()))?.filter(\.isOpen) ?? []
+        guard !records.isEmpty else { return }
+        records.forEach { $0.isOpen = false }
         do { try saveContext() } catch { context.rollback(); status = .degraded(error.localizedDescription) }
     }
 
@@ -948,10 +1117,12 @@ final class UsageStore: ObservableObject {
         appDurations: [String: [AppIdentity: TimeInterval]]? = nil,
         domainDurations: [String: [String: TimeInterval]]? = nil,
         timelineState: TimelineRuntimeState? = nil,
+        backgroundState: BackgroundRuntimeState? = nil,
         foregroundTracker: ForegroundTracker? = nil,
         domainTracker: DomainTracker? = nil,
         timelineEnabled: Bool = true,
-        finalizeTimeline: Bool = false
+        finalizeTimeline: Bool = false,
+        finalizeBackgroundActivity: Bool = false
     ) -> Bool {
         let appDurations = appDurations ?? runtimeAppDurationsByDay
         let domainDurations = domainDurations ?? runtimeDomainDurationsByDay
@@ -978,6 +1149,7 @@ final class UsageStore: ObservableObject {
 
         let timelineStateForCommit = timelineState
         var committedTimelineState: TimelineRuntimeState?
+        var committedBackgroundState: BackgroundRuntimeState?
         if let foregroundTracker, let domainTracker, var candidateTimelineState = timelineStateForCommit {
             syncTimeline(
                 state: &candidateTimelineState,
@@ -989,11 +1161,17 @@ final class UsageStore: ObservableObject {
             )
             committedTimelineState = candidateTimelineState
         }
+        if var candidateBackgroundState = backgroundState {
+            syncBackgroundActivity(state: &candidateBackgroundState, at: date, finalize: finalizeBackgroundActivity)
+            committedBackgroundState = candidateBackgroundState
+        }
         normalizeDuplicateTimelineRecords()
+        normalizeDuplicateBackgroundRecords()
 
         do {
             try saveContext()
             if let committedTimelineState { self.timelineRuntime = committedTimelineState }
+            if let committedBackgroundState { self.backgroundRuntime = committedBackgroundState }
             status = .ready
             lastCheckpointAt = date
             revision += 1
@@ -1011,6 +1189,11 @@ final class UsageStore: ObservableObject {
                 }
                 for (key, id) in committedTimelineState.websiteSegmentIDs {
                     timelineRuntime.websiteSegmentIDs[key] = id
+                }
+            }
+            if let committedBackgroundState {
+                for (key, id) in committedBackgroundState.segmentIDs {
+                    backgroundRuntime.segmentIDs[key] = id
                 }
             }
             status = .degraded(error.localizedDescription)
@@ -1067,6 +1250,80 @@ final class UsageStore: ObservableObject {
             persistWebsiteSegments(domain: domain, start: effectiveStart, end: date, sourceKey: "active|\(domain)|\(effectiveStart.timeIntervalSinceReferenceDate)", state: &state, isOpen: !finalize)
         }
         if finalize { state.activeWebsiteDomain = nil; state.activeWebsiteStart = nil }
+    }
+
+    private func syncBackgroundActivity(state: inout BackgroundRuntimeState, at date: Date, finalize: Bool) {
+        if finalize {
+            for active in state.openByDetector.values {
+                state.closed.append(active.closed(at: date))
+            }
+            state.openByDetector.removeAll()
+        }
+        for activity in state.closed where !state.processedSourceIDs.contains(activity.sourceID) {
+            persistBackgroundSegments(activity, state: &state, isOpen: false)
+            state.processedSourceIDs.insert(activity.sourceID)
+        }
+        for activity in state.openByDetector.values {
+            persistBackgroundSegments(activity, state: &state, isOpen: !finalize)
+        }
+    }
+
+    private func persistBackgroundSegments(
+        _ activity: BackgroundRuntimeActivity,
+        state: inout BackgroundRuntimeState,
+        isOpen: Bool
+    ) {
+        guard activity.end > activity.start else { return }
+        for segment in TimelineIntervalNormalizer.split(start: activity.start, end: activity.end, calendar: calendar) {
+            let key = "\(activity.sourceID)|\(segment.dateKey)"
+            let id = state.segmentIDs[key] ?? UUID().uuidString
+            state.segmentIDs[key] = id
+            let record = fetchBackgroundInterval(id: id) ?? BackgroundActivityIntervalRecord(context: context)
+            record.idString = id
+            record.dateKey = segment.dateKey
+            record.startAt = segment.start
+            record.endAt = segment.end
+            record.durationSeconds = segment.duration
+            record.isOpen = isOpen && segment.end == activity.end
+            record.bundleIdentifier = activity.app.bundleIdentifier
+            record.displayName = activity.app.displayName
+            record.activityKindRawValue = activity.activityKind.rawValue
+            record.detectorIdentifier = activity.detectorIdentifier
+        }
+    }
+
+    private func fetchBackgroundInterval(id: String) -> BackgroundActivityIntervalRecord? {
+        let request = BackgroundActivityIntervalRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "idString == %@", id)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first
+    }
+
+    private func backgroundInterval(from record: BackgroundActivityIntervalRecord, now: Date) -> BackgroundActivityInterval? {
+        guard let kind = BackgroundActivityKind(rawValue: record.activityKindRawValue),
+              let valid = TimelineIntervalNormalizer.validated(start: record.startAt, end: min(record.endAt, now)) else { return nil }
+        return BackgroundActivityInterval(
+            id: record.idString,
+            dateKey: record.dateKey,
+            start: valid.start,
+            end: valid.end,
+            duration: valid.duration,
+            app: AppIdentity(bundleIdentifier: record.bundleIdentifier, displayName: record.displayName),
+            activityKind: kind,
+            detectorIdentifier: record.detectorIdentifier,
+            isOpen: record.isOpen && record.endAt >= now
+        )
+    }
+
+    private func normalizeDuplicateBackgroundRecords() {
+        let records = (try? context.fetch(BackgroundActivityIntervalRecord.fetchRequest())) ?? []
+        for duplicates in Dictionary(grouping: records, by: { "\($0.dateKey)|\($0.startAt.timeIntervalSinceReferenceDate)|\($0.endAt.timeIntervalSinceReferenceDate)|\($0.bundleIdentifier)|\($0.activityKindRawValue)|\($0.detectorIdentifier)" }).values where duplicates.count > 1 {
+            let canonical = duplicates.sorted {
+                if $0.durationSeconds != $1.durationSeconds { return $0.durationSeconds > $1.durationSeconds }
+                return $0.idString < $1.idString
+            }.first!
+            duplicates.filter { $0 !== canonical }.forEach(context.delete)
+        }
     }
 
     private func normalizeDuplicateTimelineRecords() {
@@ -1533,6 +1790,75 @@ private struct TimelineRuntimeState {
     }
 }
 
+private struct BackgroundRuntimeActivity {
+    let sourceID: String
+    let detectorIdentifier: String
+    var app: AppIdentity
+    let activityKind: BackgroundActivityKind
+    let start: Date
+    var end: Date
+
+    func closed(at date: Date) -> Self {
+        var result = self
+        result.end = max(start, min(end, date))
+        return result
+    }
+}
+
+private struct BackgroundRuntimeState {
+    var processedSourceIDs: Set<String> = []
+    var segmentIDs: [String: String] = [:]
+    var openByDetector: [String: BackgroundRuntimeActivity] = [:]
+    var closed: [BackgroundRuntimeActivity] = []
+    var anchorDate: Date?
+
+    init(anchorDate: Date? = nil) {
+        self.anchorDate = anchorDate
+    }
+
+    func liveIntervals(at now: Date, dateKey: String, calendar: Calendar) -> [BackgroundActivityInterval] {
+        let openIntervals = openByDetector.values.flatMap { activity -> [BackgroundActivityInterval] in
+            TimelineIntervalNormalizer.split(start: max(activity.start, anchorDate ?? activity.start), end: now, calendar: calendar)
+                .filter { $0.dateKey == dateKey }
+                .compactMap { segment in
+                    let key = "\(activity.sourceID)|\(segment.dateKey)"
+                    guard let id = segmentIDs[key] else { return nil }
+                    return BackgroundActivityInterval(
+                        id: id,
+                        dateKey: segment.dateKey,
+                        start: segment.start,
+                        end: segment.end,
+                        duration: segment.duration,
+                        app: activity.app,
+                        activityKind: activity.activityKind,
+                        detectorIdentifier: activity.detectorIdentifier,
+                        isOpen: segment.end == now
+                    )
+                }
+        }
+        let closedIntervals = closed.flatMap { activity -> [BackgroundActivityInterval] in
+            TimelineIntervalNormalizer.split(start: max(activity.start, anchorDate ?? activity.start), end: min(activity.end, now), calendar: calendar)
+                .filter { $0.dateKey == dateKey }
+                .compactMap { segment in
+                    let key = "\(activity.sourceID)|\(segment.dateKey)"
+                    guard let id = segmentIDs[key] else { return nil }
+                    return BackgroundActivityInterval(
+                        id: id,
+                        dateKey: segment.dateKey,
+                        start: segment.start,
+                        end: segment.end,
+                        duration: segment.duration,
+                        app: activity.app,
+                        activityKind: activity.activityKind,
+                        detectorIdentifier: activity.detectorIdentifier,
+                        isOpen: false
+                    )
+                }
+        }
+        return closedIntervals + openIntervals
+    }
+}
+
 enum DayTraceDateKey {
     static func key(for date: Date, calendar: Calendar) -> String {
         let components = calendar.dateComponents([.year, .month, .day], from: date)
@@ -1576,10 +1902,14 @@ enum UsageStoreModel {
     }
 
     static func makePreTimeline() -> NSManagedObjectModel {
-        makeModel(includeTimeline: false)
+        makeModel(includeTimeline: false, includeBackground: false)
     }
 
-    private static func makeModel(includeTimeline: Bool = true) -> NSManagedObjectModel {
+    static func makePreBackground() -> NSManagedObjectModel {
+        makeModel(includeTimeline: true, includeBackground: false)
+    }
+
+    private static func makeModel(includeTimeline: Bool = true, includeBackground: Bool = true) -> NSManagedObjectModel {
         let model = NSManagedObjectModel()
         var entities = [
             entity(
@@ -1668,6 +1998,27 @@ enum UsageStoreModel {
                 ],
                 uniquenessConstraints: [["idString"]]
             )
+            ]
+        }
+        if includeBackground {
+            entities += [
+                entity(
+                    name: "BackgroundActivityIntervalRecord",
+                    managedClassName: "BackgroundActivityIntervalRecord",
+                    attributes: [
+                        attribute("idString", .stringAttributeType),
+                        attribute("dateKey", .stringAttributeType),
+                        attribute("startAt", .dateAttributeType),
+                        attribute("endAt", .dateAttributeType),
+                        attribute("durationSeconds", .doubleAttributeType),
+                        attribute("isOpen", .booleanAttributeType),
+                        attribute("bundleIdentifier", .stringAttributeType),
+                        attribute("displayName", .stringAttributeType),
+                        attribute("activityKindRawValue", .stringAttributeType),
+                        attribute("detectorIdentifier", .stringAttributeType)
+                    ],
+                    uniquenessConstraints: [["idString"]]
+                )
             ]
         }
         model.entities = entities

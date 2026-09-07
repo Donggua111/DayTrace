@@ -9,6 +9,7 @@
 **Sprint 3 Product Hardening: IMPLEMENTED — AUTOMATED REGRESSION PASSED**
 **F-008 Event Tap Lifecycle: IMPLEMENTED — REAL-MAC REGRESSION PASSED**
 **Timeline V2: IMPLEMENTED — 107 AUTOMATED TESTS PASSED; SIGNED MANUAL GATE PENDING**
+**Background Activity V1: IMPLEMENTED — AUTOMATED REGRESSION PASSED; REAL-APP DETECTOR GATE PENDING**
 
 Next gate: **Timeline V2 validation and independent re-review**
 
@@ -98,10 +99,12 @@ Implemented in the current Insights & Control batch:
 - local privacy summary, data-location shortcut, and optional logical aggregate backups
 - Timeline V2 interval history for apps and sanitized Chrome website children
 - Timeline retention toggle, interval-only deletion, and versioned detailed export/backup
+- Background Activity V1 interval lane, NookX visible-surface detector, NetEase public CoreAudio detector, and separate settings/delete/export paths
 
 Remaining Internal Beta work, intentionally deferred here:
 - backup restore/import workflows
 - privacy zones, automatic category rules, cloud/accounts, and production distribution
+- additional background detectors; V1 is limited to the two inspected app identities
 
 ---
 

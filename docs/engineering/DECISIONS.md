@@ -35,3 +35,26 @@ Validation evidence: the pre-Timeline migration fixture retains App, Website,
 Typing, and Typing-App aggregate data while creating no interval records. A
 real legacy production store is not available, so no real old-store migration
 PASS is claimed.
+
+## Background Activity V1: separate intervals, honest detector signals
+
+Status: accepted for Internal Beta foundation
+
+Background activity is represented by a separate interval-only entity and a
+separate History lane. It is not a second interpretation of foreground usage:
+overlapping background intervals are allowed across different apps/detectors,
+but none contributes to the canonical foreground total or Chrome website
+parent. A shared coordinator polls detectors at a low cadence and persists via
+the existing checkpoint path.
+
+V1 supports two inspected identities only. NookX uses public visible-window
+metadata without reading window content. NetEase uses the public CoreAudio
+process output-running property without capturing audio. Process existence
+alone is not treated as activity, and unavailable signals stay unavailable.
+No private MediaRemote API or new sensitive permission is allowed.
+
+Background intervals are exported only as metadata when detailed export is
+selected and can be deleted independently. The backup envelope is version 3
+because its detailed payload now includes background intervals. Migration from
+the current Timeline V2 schema is additive; no real prior production dataset
+exists, so a real old-store migration test remains unavailable.

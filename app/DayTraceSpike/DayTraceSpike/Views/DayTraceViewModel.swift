@@ -7,6 +7,7 @@ final class DayTraceViewModel: ObservableObject {
     let foregroundTracker: ForegroundTracker
     let typingCounter: TypingCounter
     let domainTracker: DomainTracker
+    let backgroundActivity: BackgroundActivityCoordinator
     let socketBridge: UnixSocketBridge
     let usageStore: UsageStore
     let backupManager: BackupManager
@@ -28,6 +29,8 @@ final class DayTraceViewModel: ObservableObject {
         let domains = DomainTracker(foregroundTracker: tracker)
         foregroundTracker = tracker
         domainTracker = domains
+        let background = BackgroundActivityCoordinator(usageStore: store, foregroundTracker: tracker)
+        backgroundActivity = background
         typingCounter = TypingCounter(appProvider: { [weak tracker] in tracker?.currentApp })
         self.usageStore = store
         backupManager = BackupManager()
@@ -37,7 +40,13 @@ final class DayTraceViewModel: ObservableObject {
         let socket = UnixSocketBridge(messageHandler: { domain in
             Task { @MainActor in
                 domains.receive(domain: domain)
-                store.checkpoint(foregroundTracker: tracker, domainTracker: domains)
+            store.checkpoint(
+                foregroundTracker: tracker,
+                domainTracker: domains,
+                backgroundObservations: background.detectorSnapshots,
+                backgroundActivityEnabled: background.backgroundActivityEnabled,
+                enabledBackgroundDetectorIdentifiers: background.enabledDetectorIdentifiers
+            )
             }
         })
         socket.onStatusChanged = { status in
@@ -48,7 +57,15 @@ final class DayTraceViewModel: ObservableObject {
 
         tracker.onTransition = { app, date in
             domains.foregroundChanged(to: app, at: date)
-            store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: date)
+            background.refresh(at: date)
+            store.checkpoint(
+                foregroundTracker: tracker,
+                domainTracker: domains,
+                at: date,
+                backgroundObservations: background.detectorSnapshots,
+                backgroundActivityEnabled: background.backgroundActivityEnabled,
+                enabledBackgroundDetectorIdentifiers: background.enabledDetectorIdentifiers
+            )
         }
         tracker.onCalendarChange = { date in
             // The transition callback checkpoints with the previous calendar
@@ -58,7 +75,7 @@ final class DayTraceViewModel: ObservableObject {
         typingCounter.onAggregateRecorded = { category, app, date in
             store.recordTyping(category: category, app: app, at: date)
         }
-        [tracker.objectWillChange, typingCounter.objectWillChange, domains.objectWillChange, socket.objectWillChange, store.objectWillChange, launchAtLogin.objectWillChange, metadataStore.objectWillChange]
+            [tracker.objectWillChange, typingCounter.objectWillChange, domains.objectWillChange, backgroundActivity.objectWillChange, socket.objectWillChange, store.objectWillChange, launchAtLogin.objectWillChange, metadataStore.objectWillChange]
             .forEach { publisher in
                 publisher.sink { [weak self] _ in
                     self?.cachedSnapshotDate = nil
@@ -80,6 +97,7 @@ final class DayTraceViewModel: ObservableObject {
         }
         typingCounter.start()
         socketBridge.start()
+        backgroundActivity.start()
     }
 
     deinit {
@@ -134,7 +152,11 @@ final class DayTraceViewModel: ObservableObject {
             domainTracker: domainTracker,
             at: date,
             timelineEnabled: timelineEnabled,
-            finalizeTimeline: finalizeTimeline
+            finalizeTimeline: finalizeTimeline,
+            backgroundObservations: backgroundActivity.detectorSnapshots,
+            backgroundActivityEnabled: backgroundActivity.backgroundActivityEnabled,
+            enabledBackgroundDetectorIdentifiers: backgroundActivity.enabledDetectorIdentifiers,
+            finalizeBackgroundActivity: finalizeTimeline
         )
         guard didPersist else { return false }
         if allowAutomaticBackup, backupManager.isEnabled {
@@ -188,6 +210,34 @@ final class DayTraceViewModel: ObservableObject {
         usageStore.timeline(for: date, now: now)
     }
 
+    func backgroundSummary(for date: Date = Date(), now: Date = Date()) -> BackgroundActivitySummary {
+        usageStore.backgroundSummary(for: date, now: now)
+    }
+
+    func backgroundStatistics() -> BackgroundDataStatistics {
+        usageStore.backgroundDataStatistics()
+    }
+
+    @discardableResult
+    func setBackgroundActivityEnabled(_ enabled: Bool) -> Bool {
+        backgroundActivity.setBackgroundActivityEnabled(enabled)
+        _ = checkpoint(allowAutomaticBackup: false)
+        return true
+    }
+
+    func setBackgroundDetectorEnabled(_ enabled: Bool, identifier: String) {
+        backgroundActivity.setDetectorEnabled(enabled, identifier: identifier)
+        _ = checkpoint(allowAutomaticBackup: false)
+    }
+
+    @discardableResult
+    func deleteBackgroundActivityHistory() -> Bool {
+        backgroundActivity.stop()
+        let result = usageStore.deleteBackgroundActivityHistory()
+        if result { backgroundActivity.start() }
+        return result
+    }
+
     func timelineStatistics() -> TimelineDataStatistics {
         usageStore.timelineStatistics(enabled: timelineEnabled)
     }
@@ -218,6 +268,7 @@ final class DayTraceViewModel: ObservableObject {
         foregroundTracker.resetRuntimeState(at: now)
         domainTracker.resetRuntimeState(at: now)
         typingCounter.resetMetrics()
+        backgroundActivity.start()
         cachedSnapshotDate = nil
         cachedSnapshot = nil
         return true
@@ -245,6 +296,7 @@ final class DayTraceViewModel: ObservableObject {
         // Quiesce input first. TypingCounter keeps its accepted aggregate in
         // memory, while queued callbacks after this point are discarded.
         typingCounter.quiesce()
+        backgroundActivity.stop()
 
         // Persist the final foreground/domain snapshot before tearing down
         // the socket. Event Tap cleanup is bounded and continues on its own
