@@ -58,3 +58,20 @@ selected and can be deleted independently. The backup envelope is version 3
 because its detailed payload now includes background intervals. Migration from
 the current Timeline V2 schema is additive; no real prior production dataset
 exists, so a real old-store migration test remains unavailable.
+
+## Product Completion V1: durable local control
+
+Status: implemented for Internal Beta
+
+Analytics V3 remains a pure read-side layer. It computes hourly distributions,
+sessions, transitions, and daily trends from existing aggregates and Timeline
+records without adding event-level persistence. Restore is replace semantics,
+with strict preflight validation, a safety backup, one Core Data transaction,
+and runtime re-anchoring. Selective deletion is date-range based and keeps
+unselected datasets intact; App Usage deletion is coupled to website and
+detailed Timeline children.
+
+Integrity checks are manual and privacy-safe. Only deterministic stale-open
+interval repair is automatic; aggregate values are never guessed or rewritten.
+Diagnostics export health metadata only. Exact Category Rules and Hide Identity
+are presentation metadata, distinct from the deferred Exclude Tracking mode.

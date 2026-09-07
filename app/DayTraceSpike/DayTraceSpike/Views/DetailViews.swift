@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 enum UsageDetailMetrics {
@@ -12,6 +13,8 @@ struct AppDetailView: View {
     let app: AppIdentity
     let snapshot: HistoryUsageSnapshot
     let languageRawValue: String
+    let model: DayTraceViewModel
+    let range: HistoryRange
 
     var body: some View {
         VStack(alignment: .leading, spacing: DayTraceDesign.spaceL) {
@@ -19,7 +22,7 @@ struct AppDetailView: View {
                 AppIconView(app: app)
                     .frame(width: 48, height: 48)
                 VStack(alignment: .leading, spacing: DayTraceDesign.spaceXS) {
-                    Text(app.displayName).font(DayTraceDesign.title)
+                    Text(model.metadataStore.presentationName(for: app)).font(DayTraceDesign.title)
                     Text("history.appDetail.subtitle").font(DayTraceDesign.body).foregroundStyle(.secondary)
                 }
             }
@@ -30,10 +33,22 @@ struct AppDetailView: View {
                     detailRow("typingActivity.typedCharacters", count)
                 }
             }
+            UsageCard {
+                VStack(alignment: .leading, spacing: DayTraceDesign.spaceM) {
+                    DayTraceSectionHeader(title: "history.detail.trend", systemImage: "chart.bar")
+                    let trend = model.dailyAppTrend(for: app, range: range)
+                    Chart(trend) { point in
+                        BarMark(x: .value("history.detail.day", point.date, unit: .day), y: .value("history.detail.duration", point.totalUsage))
+                            .foregroundStyle(DayTraceDesign.accent.gradient)
+                    }
+                    .frame(height: 120)
+                    .accessibilityLabel(Text("history.detail.trend"))
+                }
+            }
             Spacer()
         }
         .padding(DayTraceDesign.spaceXL)
-        .frame(width: 460, height: 300, alignment: .topLeading)
+        .frame(width: 520, height: 470, alignment: .topLeading)
     }
 
     private var selectedLocale: Locale { (AppLanguage(rawValue: languageRawValue) ?? .system).locale }
@@ -55,10 +70,12 @@ struct WebsiteDetailView: View {
     let domain: String
     let snapshot: HistoryUsageSnapshot
     let languageRawValue: String
+    let model: DayTraceViewModel
+    let range: HistoryRange
 
     var body: some View {
         VStack(alignment: .leading, spacing: DayTraceDesign.spaceL) {
-            Label(domain, systemImage: "globe").font(DayTraceDesign.title)
+            Label(model.metadataStore.presentationName(for: domain), systemImage: "globe").font(DayTraceDesign.title)
             Text("history.websiteDetail.subtitle").font(DayTraceDesign.body).foregroundStyle(.secondary)
             UsageCard {
                 VStack(alignment: .leading, spacing: DayTraceDesign.spaceM) {
@@ -66,10 +83,22 @@ struct WebsiteDetailView: View {
                     detailRow("history.shareOfChrome", percentage)
                 }
             }
+            UsageCard {
+                VStack(alignment: .leading, spacing: DayTraceDesign.spaceM) {
+                    DayTraceSectionHeader(title: "history.detail.trend", systemImage: "chart.bar")
+                    let trend = model.dailyWebsiteTrend(for: domain, range: range)
+                    Chart(trend) { point in
+                        BarMark(x: .value("history.detail.day", point.date, unit: .day), y: .value("history.detail.duration", point.totalUsage))
+                            .foregroundStyle(DayTraceDesign.accent.gradient)
+                    }
+                    .frame(height: 120)
+                    .accessibilityLabel(Text("history.detail.trend"))
+                }
+            }
             Spacer()
         }
         .padding(DayTraceDesign.spaceXL)
-        .frame(width: 460, height: 250, alignment: .topLeading)
+        .frame(width: 520, height: 420, alignment: .topLeading)
     }
 
     private var selectedLocale: Locale { (AppLanguage(rawValue: languageRawValue) ?? .system).locale }

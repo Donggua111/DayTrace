@@ -3,6 +3,114 @@ import XCTest
 
 @MainActor
 final class DayTraceTests: XCTestCase {
+    func testProductAnalyticsSplitsIntervalsAtLocalHourBoundaries() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let start = makeDate(day: 30, hour: 9, minute: 50, second: 0, calendar: calendar)
+        let app = AppIdentity(bundleIdentifier: "com.example.editor", displayName: "Editor")
+        let interval = TimelineAppInterval(id: "1", dateKey: "2026-01-30", start: start, end: start.addingTimeInterval(1_800), duration: 1_800, app: app, isOpen: false)
+        let points = DayTraceProductAnalytics.hourlyActivity(from: [interval], calendar: calendar)
+
+        XCTAssertEqual(points[9].duration, 600, accuracy: 0.001)
+        XCTAssertEqual(points[10].duration, 1_200, accuracy: 0.001)
+    }
+
+    func testProductAnalyticsComputesSessionsAndTransitions() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let first = AppIdentity(bundleIdentifier: "com.example.first", displayName: "First")
+        let second = AppIdentity(bundleIdentifier: "com.example.second", displayName: "Second")
+        let start = makeDate(day: 30, hour: 9, minute: 0, second: 0, calendar: calendar)
+        let intervals = [
+            TimelineAppInterval(id: "1", dateKey: "2026-01-30", start: start, end: start.addingTimeInterval(60), duration: 60, app: first, isOpen: false),
+            TimelineAppInterval(id: "2", dateKey: "2026-01-30", start: start.addingTimeInterval(60), end: start.addingTimeInterval(180), duration: 120, app: second, isOpen: false),
+            TimelineAppInterval(id: "3", dateKey: "2026-01-30", start: start.addingTimeInterval(180), end: start.addingTimeInterval(240), duration: 60, app: first, isOpen: false)
+        ]
+        let analytics = DayTraceProductAnalytics.sessionAnalytics(from: intervals)
+
+        XCTAssertEqual(analytics.sessionCount, 3)
+        XCTAssertEqual(analytics.averageDuration, 80, accuracy: 0.001)
+        XCTAssertEqual(analytics.longestDuration, 120, accuracy: 0.001)
+        XCTAssertEqual(DayTraceProductAnalytics.transitions(from: intervals).first?.count, 1)
+    }
+
+    func testBackupCodecRejectsNegativeDuration() throws {
+        let object: [String: Any] = [
+            "schemaVersion": 1,
+            "appUsage": [["date": "2026-01-30", "bundleIdentifier": "com.example.app", "displayName": "App", "durationSeconds": -1]],
+            "websiteUsage": [],
+            "typing": [],
+            "typingByApp": []
+        ]
+        let data = try JSONSerialization.data(withJSONObject: object)
+        guard case .failure = DayTraceBackupCodec.validate(data) else {
+            return XCTFail("Negative duration must be rejected")
+        }
+    }
+
+    func testRestoreUsesReplaceSemantics() throws {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let date = makeDate(day: 30, hour: 12, minute: 0, second: 0, calendar: calendar)
+        let first = AppIdentity(bundleIdentifier: "com.example.first", displayName: "First")
+        let second = AppIdentity(bundleIdentifier: "com.example.second", displayName: "Second")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        store.seedAppRecordForTesting(at: date, app: first, duration: 60)
+        let backup = try XCTUnwrap(store.exportAggregatesJSON(includeDetailedTimeline: true))
+        store.seedAppRecordForTesting(at: date, app: second, duration: 120)
+
+        guard case .restored = store.restore(from: backup) else {
+            return XCTFail("Restore should succeed")
+        }
+        let snapshot = store.snapshot(at: date)
+        XCTAssertEqual(snapshot.appUsageByApp[first, default: 0], 60, accuracy: 0.001)
+        XCTAssertNil(snapshot.appUsageByApp[second])
+    }
+
+    func testSelectiveDeleteKeepsUnselectedDatasets() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let date = makeDate(day: 30, hour: 12, minute: 0, second: 0, calendar: calendar)
+        let app = AppIdentity(bundleIdentifier: "com.example.app", displayName: "App")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        store.seedAppRecordForTesting(at: date, app: app, duration: 60)
+        store.recordTyping(category: .english, app: app, at: date)
+
+        XCTAssertTrue(store.deleteActivity(from: date, through: date, datasets: [.typingActivity]))
+        XCTAssertEqual(store.snapshot(at: date).appUsageByApp[app, default: 0], 60, accuracy: 0.001)
+        XCTAssertEqual(store.snapshot(at: date).typingMetrics.typedCharacters, 0)
+    }
+
+    func testIntegrityReportHealthyForValidStore() {
+        let store = UsageStore(inMemory: true)
+        let report = store.integrityReport()
+        XCTAssertTrue(report.isHealthy)
+        XCTAssertEqual(report.safeRepairCount, 0)
+    }
+
+    func testCategoryRuleUsesManualAssignmentBeforeExactRule() {
+        let suiteName = "DayTraceTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let metadata = MetadataStore(defaults: defaults)
+        let app = AppIdentity(bundleIdentifier: "com.example.editor", displayName: "Editor")
+
+        metadata.addCategory("Writing")
+        metadata.addCategory("Development")
+        metadata.addRule(targetKind: .app, target: app.bundleIdentifier, category: "Development")
+        XCTAssertEqual(metadata.resolvedCategory(for: app), "Development")
+        metadata.setCategory("Writing", for: app)
+        XCTAssertEqual(metadata.resolvedCategory(for: app), "Writing")
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
+    func testHiddenIdentityIsPresentationOnly() {
+        let suiteName = "DayTraceTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let metadata = MetadataStore(defaults: defaults)
+        let app = AppIdentity(bundleIdentifier: "com.example.private", displayName: "Private")
+
+        metadata.toggleIdentityHidden(app: app)
+        XCTAssertTrue(metadata.isIdentityHidden(app: app))
+        XCTAssertEqual(metadata.presentationName(for: app), String(localized: "metadata.privateApp"))
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
     func testExactlyOneHundredQualifyingKeys() {
         let keys = Array(repeating: Int64(0), count: 100)
         XCTAssertEqual(keys.filter(KeyClassifier.isQualifying).count, 100)

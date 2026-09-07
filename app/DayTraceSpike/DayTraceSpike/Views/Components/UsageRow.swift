@@ -4,12 +4,13 @@ import SwiftUI
 struct AppUsageRow: View {
     let app: AppIdentity
     let duration: Text
+    var title: String?
 
     var body: some View {
         HStack(spacing: DayTraceDesign.spaceM) {
             AppIconView(app: app)
 
-            Text(app.displayName)
+            Text(title ?? app.displayName)
                 .font(DayTraceDesign.body)
                 .lineLimit(1)
 
@@ -21,7 +22,7 @@ struct AppUsageRow: View {
         }
         .frame(minHeight: 36)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(app.displayName))
+        .accessibilityLabel(Text(title ?? app.displayName))
         .accessibilityValue(duration)
     }
 }
@@ -29,6 +30,7 @@ struct AppUsageRow: View {
 struct WebsiteUsageRow: View {
     let domain: String
     let duration: Text
+    var title: String?
 
     var body: some View {
         HStack(spacing: DayTraceDesign.spaceM) {
@@ -37,7 +39,7 @@ struct WebsiteUsageRow: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 24)
 
-            Text(domain)
+            Text(title ?? domain)
                 .font(DayTraceDesign.body)
                 .lineLimit(1)
 
@@ -49,7 +51,7 @@ struct WebsiteUsageRow: View {
         }
         .frame(minHeight: 34)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(Text(domain))
+        .accessibilityLabel(Text(title ?? domain))
         .accessibilityValue(duration)
     }
 }

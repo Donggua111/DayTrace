@@ -4124,6 +4124,312 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "等待首次检查" } }
       }
     },
+    "history.analytics.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Activity insights" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "活动洞察" } }
+      }
+    },
+    "history.analytics.hour" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hour" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "小时" } }
+      }
+    },
+    "history.analytics.duration" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Active time" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "活动时长" } }
+      }
+    },
+    "history.analytics.hourly" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Activity by hour" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "按小时统计的活动" } }
+      }
+    },
+    "history.analytics.hourlySummary" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Foreground activity is split at local hour boundaries." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "前台活动按本地小时边界拆分。" } }
+      }
+    },
+    "history.analytics.sessions" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sessions" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "会话" } }
+      }
+    },
+    "history.analytics.averageSession" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Average session" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "平均会话" } }
+      }
+    },
+    "history.analytics.longestSession" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Longest session" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最长会话" } }
+      }
+    },
+    "history.analytics.transitions" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Most frequent app switches" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "最常见的应用切换" } }
+      }
+    },
+    "history.detail.trend" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Daily trend" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "每日趋势" } }
+      }
+    },
+    "settings.restoreFromBackup" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore from Backup…" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "从备份恢复…" } }
+      }
+    },
+    "settings.exportDiagnosticReport" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Export Diagnostic Report…" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "导出诊断报告…" } }
+      }
+    },
+    "settings.restore.confirmTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore activity data?" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "恢复活动数据？" } }
+      }
+    },
+    "settings.restore.summary" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This backup contains %d app records and %d website records. Current activity will be replaced after a safety backup." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "此备份包含 %d 条应用记录和 %d 条网站记录。创建安全备份后，当前活动数据将被替换。" } }
+      }
+    },
+    "settings.restore.cancel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "取消" } }
+      }
+    },
+    "settings.restore.confirm" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "恢复" } }
+      }
+    },
+    "settings.restore.succeeded" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore completed." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "恢复完成。" } }
+      }
+    },
+    "settings.restore.invalid" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This backup cannot be restored." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法恢复此备份。" } }
+      }
+    },
+    "settings.restore.failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Restore failed. Existing data was kept if the transaction could not complete." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "恢复失败。如果事务未完成，现有数据会保留。" } }
+      }
+    },
+    "settings.dataControl" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Data control" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "数据控制" } }
+      }
+    },
+    "settings.delete.start" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Start date" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "开始日期" } }
+      }
+    },
+    "settings.delete.end" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "End date" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "结束日期" } }
+      }
+    },
+    "settings.delete.appUsage" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "App usage (website data follows)" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "应用使用（网站数据会一并处理）" } }
+      }
+    },
+    "settings.delete.typing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Typing activity" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "输入活动" } }
+      }
+    },
+    "settings.delete.timeline" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Detailed timeline" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "详细时间线" } }
+      }
+    },
+    "settings.delete.background" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Background activity" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "后台活动" } }
+      }
+    },
+    "settings.deleteActivity" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete selected activity…" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除选中的活动…" } }
+      }
+    },
+    "settings.deleteActivity.confirmTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete selected activity?" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除选中的活动？" } }
+      }
+    },
+    "settings.deleteActivity.confirmMessage" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The selected datasets will be removed for the chosen date range." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "所选数据集将在指定日期范围内删除。" } }
+      }
+    },
+    "settings.integrity.run" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Run Integrity Check" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "运行完整性检查" } }
+      }
+    },
+    "settings.integrity.healthy" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No issues found" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未发现问题" } }
+      }
+    },
+    "settings.integrity.issues" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Issues found" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "发现问题" } }
+      }
+    },
+    "settings.integrity.repair" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Repair safe findings" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "修复安全问题" } }
+      }
+    },
+    "onboarding.welcome.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Welcome to DayTrace" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "欢迎使用 DayTrace" } }
+      }
+    },
+    "onboarding.welcome.detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "DayTrace records a clear, local view of how you spend time on your Mac." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "DayTrace 在本地记录你如何使用 Mac。" } }
+      }
+    },
+    "onboarding.records.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "What DayTrace records" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "DayTrace 记录什么" } }
+      }
+    },
+    "onboarding.records.detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Foreground apps, sanitized Chrome domains, aggregate typing, timeline detail, and supported background activity." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "前台应用、经过清理的 Chrome 域名、输入聚合、时间线详情和支持的后台活动。" } }
+      }
+    },
+    "onboarding.privacy.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Privacy first" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "隐私优先" } }
+      }
+    },
+    "onboarding.privacy.detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "DayTrace never stores what you type, full URLs, screenshots, or cloud copies." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "DayTrace 不保存输入内容、完整 URL、截图或云端副本。" } }
+      }
+    },
+    "onboarding.setup.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Finish setup" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成设置" } }
+      }
+    },
+    "onboarding.setup.detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Input Monitoring and Chrome integration can be completed from Settings when needed." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "需要时可以在设置中完成输入监控和 Chrome 集成。" } }
+      }
+    },
+    "onboarding.back" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Back" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "返回" } }
+      }
+    },
+    "onboarding.next" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Next" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "下一步" } }
+      }
+    },
+    "onboarding.done" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Done" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "完成" } }
+      }
+    },
+    "metadata.ruleTarget" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "App bundle ID or domain" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "应用 Bundle ID 或域名" } }
+      }
+    },
+    "metadata.ruleCategory" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Category" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "分类" } }
+      }
+    },
+    "metadata.addRule" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add exact rule" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "添加精确规则" } }
+      }
+    },
+    "metadata.ruleNote" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rules affect display metadata only; they never change durations or identities." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "规则只影响展示元数据，不会改变时长或身份。" } }
+      }
+    },
+    "metadata.hideIdentity" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hide known app identities in normal views" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "在普通视图中隐藏已知应用身份" } }
+      }
+    },
+    "metadata.privateApp" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Private App" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "私密应用" } }
+      }
+    },
+    "metadata.privateWebsite" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Private Website" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "私密网站" } }
+      }
+    },
     "usage.websiteEmpty" : {
       "extractionState" : "stale",
       "localizations" : {

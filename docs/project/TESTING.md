@@ -529,7 +529,7 @@ Xcode Run with the stable bundle identifier `com.daytrace.spike`.
 
 ## 7. Timeline V2 automated coverage
 
-The current XCTest suite contains 107 tests and covers:
+The current XCTest suite contains 127 tests and covers:
 
 - positive/invalid interval validation and exact local-midnight splitting;
 - stable interval IDs across checkpoints, live projection reconciliation, and
@@ -570,3 +570,39 @@ coverage. A real production/legacy store does not exist in this repository;
 the genuine pre-Timeline fixture is the available migration evidence, while a
 real old-store migration run is recorded as not available rather than
 fabricated.
+
+## 8. Product Completion V1 automated coverage
+
+The additional tests cover:
+
+- local-hour interval splitting, session statistics, and App transition counts;
+- strict backup validation, negative-duration rejection, and Replace Restore
+  semantics without additive duplication;
+- dataset-specific range deletion preserving unselected activity;
+- healthy-store Integrity reporting and the existing migration fixtures.
+
+## 9. Product Completion V1 manual smoke test
+
+1. In History, open a selected day and confirm Activity insights shows hourly
+   bars, session count, average/longest session, and descriptive App switches.
+2. Open an App or website detail and confirm its daily trend uses aggregate
+   records and does not change totals.
+3. In Settings → Data, choose Restore from Backup. Confirm the summary appears
+   before confirmation; restore is Replace, not Merge, and a safety backup is
+   created first.
+4. In Settings → Data control, delete only Typing for a date range. Confirm App
+   and Website usage remain. Deleting App Usage also removes its website/detail
+   children for that range.
+5. Run Integrity Check. A healthy store reports No issues found. Safe repair
+   only closes stale open intervals; it never invents aggregate duration.
+6. Export a Diagnostic Report and inspect the JSON. It must contain health and
+   record-count metadata only—no domains, URL paths, Timeline rows, typed text,
+   user file paths, or activity lists.
+7. On a fresh empty data store, the four-page onboarding appears once. An
+   existing store is not forced through onboarding merely because this feature
+   was added.
+
+Manual GUI validation remains pending for signed Input Monitoring/TCC, real
+Chrome discovery, menu bar refresh, Timeline visual behavior, restore Finder
+picker, VoiceOver, timezone changes, and real detector behavior. These pending
+checks do not replace the 127-test automated gate.

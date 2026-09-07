@@ -8,7 +8,7 @@
 **Internal Beta Sprint 2B Core Persistence: STABILIZED**
 **Sprint 3 Product Hardening: IMPLEMENTED — AUTOMATED REGRESSION PASSED**
 **F-008 Event Tap Lifecycle: IMPLEMENTED — REAL-MAC REGRESSION PASSED**
-**Timeline V2: IMPLEMENTED — 107 AUTOMATED TESTS PASSED; SIGNED MANUAL GATE PENDING**
+**Timeline V2: IMPLEMENTED — 127 AUTOMATED TESTS PASSED; SIGNED MANUAL GATE PENDING**
 **Background Activity V1: IMPLEMENTED — AUTOMATED REGRESSION PASSED; REAL-APP DETECTOR GATE PENDING**
 
 Next gate: **Timeline V2 validation and independent re-review**
@@ -101,10 +101,19 @@ Implemented in the current Insights & Control batch:
 - Timeline retention toggle, interval-only deletion, and versioned detailed export/backup
 - Background Activity V1 interval lane, NookX visible-surface detector, NetEase public CoreAudio detector, and separate settings/delete/export paths
 
+Product Completion V1 foundations now implemented:
+- hourly activity, session and transition analytics with native Charts presentation
+- App/Website daily trends and descriptive App detail analytics
+- validated version 1–3 replace restore with safety backup and rollback-on-save-failure
+- range-based dataset deletion with current-day runtime re-anchor
+- on-demand integrity check and deterministic stale-open-interval repair
+- privacy-safe diagnostic export and first-run onboarding
+- exact category rules and presentation-only Hide Identity metadata
+
 Remaining Internal Beta work, intentionally deferred here:
-- backup restore/import workflows
-- privacy zones, automatic category rules, cloud/accounts, and production distribution
-- additional background detectors; V1 is limited to the two inspected app identities
+- Exclude Tracking runtime semantics and entity-specific historical deletion
+- more background detectors; V1 is limited to the two inspected app identities
+- production identity, distribution, cloud/accounts, and merge import
 
 ---
 

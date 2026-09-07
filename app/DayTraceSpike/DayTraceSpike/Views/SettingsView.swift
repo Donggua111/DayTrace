@@ -12,8 +12,21 @@ struct SettingsView: View {
     @State private var newCategory = ""
     @State private var renamingCategory: String?
     @State private var categoryDraft = ""
+    @State private var ruleTarget = ""
+    @State private var ruleCategory = ""
     @State private var deleteTimelineConfirmationPresented = false
     @State private var includeDetailedTimelineInExport = false
+    @State private var pendingRestoreData: Data?
+    @State private var pendingRestoreSummary = ""
+    @State private var restoreConfirmationPresented = false
+    @State private var deleteActivityConfirmationPresented = false
+    @State private var deleteStart = Calendar.autoupdatingCurrent.startOfDay(for: Date())
+    @State private var deleteEnd = Calendar.autoupdatingCurrent.startOfDay(for: Date())
+    @State private var deleteAppUsage = true
+    @State private var deleteTyping = false
+    @State private var deleteTimeline = false
+    @State private var deleteBackground = false
+    @State private var integrityReport: IntegrityReport?
 
     var body: some View {
         Form {
@@ -154,6 +167,8 @@ struct SettingsView: View {
                     backupMessage = model.createBackup() == nil ? "settings.backupFailed" : "settings.backupSucceeded"
                 }
                 Button("settings.showDataLocation", action: showDataLocation)
+                Button("settings.restoreFromBackup", action: chooseRestoreFile)
+                Button("settings.exportDiagnosticReport", action: exportDiagnosticReport)
                 if let backupMessage {
                     Text(backupMessage).font(DayTraceDesign.caption).foregroundStyle(.secondary)
                 }
@@ -161,6 +176,37 @@ struct SettingsView: View {
                     .font(DayTraceDesign.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("settings.dataControl") {
+                DatePicker("settings.delete.start", selection: $deleteStart, displayedComponents: .date)
+                DatePicker("settings.delete.end", selection: $deleteEnd, displayedComponents: .date)
+                Toggle("settings.delete.appUsage", isOn: $deleteAppUsage)
+                Toggle("settings.delete.typing", isOn: $deleteTyping)
+                Toggle("settings.delete.timeline", isOn: $deleteTimeline)
+                Toggle("settings.delete.background", isOn: $deleteBackground)
+                Button("settings.deleteActivity", role: .destructive) {
+                    deleteActivityConfirmationPresented = true
+                }
+                Button("settings.integrity.run") {
+                    integrityReport = model.integrityReport()
+                }
+                if let report = integrityReport {
+                    HStack {
+                        Label(
+                            report.isHealthy ? "settings.integrity.healthy" : "settings.integrity.issues",
+                            systemImage: report.isHealthy ? "checkmark.seal" : "exclamationmark.triangle"
+                        )
+                        Spacer()
+                        Text(report.recordsScanned, format: .number).monospacedDigit()
+                    }
+                    if !report.isHealthy {
+                        Button("settings.integrity.repair") {
+                            _ = model.repairIntegrity()
+                            integrityReport = model.integrityReport()
+                        }
+                    }
+                }
             }
 
             Section("settings.timeline") {
@@ -230,6 +276,38 @@ struct SettingsView: View {
                     }
                 }
                 Text("metadata.categoryNote").font(DayTraceDesign.caption).foregroundStyle(.secondary)
+                HStack {
+                    TextField("metadata.ruleTarget", text: $ruleTarget)
+                    TextField("metadata.ruleCategory", text: $ruleCategory)
+                    Button("metadata.addRule") {
+                        model.metadataStore.addRule(targetKind: .app, target: ruleTarget, category: ruleCategory)
+                        ruleTarget = ""
+                        ruleCategory = ""
+                    }
+                    .disabled(ruleTarget.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || ruleCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+                ForEach(model.metadataStore.categoryRules) { rule in
+                    HStack {
+                        Label(rule.target, systemImage: rule.targetKind == .app ? "macwindow" : "globe")
+                        Spacer()
+                        Text(rule.category).foregroundStyle(.secondary)
+                        Button { model.metadataStore.deleteRule(rule) } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+                Text("metadata.ruleNote").font(DayTraceDesign.caption).foregroundStyle(.secondary)
+                let knownApps = model.appIdentities()
+                if !knownApps.isEmpty {
+                    Text("metadata.hideIdentity").font(DayTraceDesign.bodyMedium)
+                    ForEach(knownApps, id: \.self) { app in
+                        Toggle(model.metadataStore.presentationName(for: app), isOn: Binding(
+                            get: { model.metadataStore.isIdentityHidden(app: app) },
+                            set: { _ in model.metadataStore.toggleIdentityHidden(app: app) }
+                        ))
+                    }
+                }
             }
 
             Section("settings.privacySummary") {
@@ -297,6 +375,24 @@ struct SettingsView: View {
             }
         } message: {
             Text("settings.timeline.deleteMessage")
+        }
+        .alert("settings.restore.confirmTitle", isPresented: $restoreConfirmationPresented) {
+            Button("settings.restore.cancel", role: .cancel) { pendingRestoreData = nil }
+            Button("settings.restore.confirm", role: .destructive) {
+                if let pendingRestoreData {
+                    let result = model.restoreBackup(from: pendingRestoreData)
+                    backupMessage = restoreMessage(for: result)
+                }
+                pendingRestoreData = nil
+            }
+        } message: {
+            Text(pendingRestoreSummary)
+        }
+        .alert("settings.deleteActivity.confirmTitle", isPresented: $deleteActivityConfirmationPresented) {
+            Button("settings.deleteData.cancel", role: .cancel) {}
+            Button("settings.deleteData.confirm", role: .destructive) { deleteActivity() }
+        } message: {
+            Text("settings.deleteActivity.confirmMessage")
         }
     }
 
@@ -396,6 +492,58 @@ struct SettingsView: View {
 
     private func deleteData() {
         actionMessage = model.deleteAllData() ? "settings.deleteSucceeded" : "settings.deleteFailed"
+    }
+
+    private func chooseRestoreFile() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url, let data = try? Data(contentsOf: url) else {
+            return
+        }
+        guard case .success(let payload) = DayTraceBackupCodec.validate(data) else {
+            backupMessage = "settings.restore.invalid"
+            return
+        }
+        pendingRestoreData = data
+        pendingRestoreSummary = String(format: NSLocalizedString("settings.restore.summary", comment: "Restore summary"), payload.appUsage.count, payload.websiteUsage.count)
+        restoreConfirmationPresented = true
+    }
+
+    private func restoreMessage(for result: RestoreResult) -> LocalizedStringKey {
+        switch result {
+        case .restored: return "settings.restore.succeeded"
+        case .rejected: return "settings.restore.invalid"
+        case .failed: return "settings.restore.failed"
+        }
+    }
+
+    private func deleteActivity() {
+        var datasets = Set<ActivityDataset>()
+        if deleteAppUsage { datasets.insert(.appUsage) }
+        if deleteTyping { datasets.insert(.typingActivity) }
+        if deleteTimeline { datasets.insert(.detailedTimeline) }
+        if deleteBackground { datasets.insert(.backgroundActivity) }
+        actionMessage = model.deleteActivity(from: deleteStart, through: deleteEnd, datasets: datasets)
+            ? "settings.deleteSucceeded"
+            : "settings.deleteFailed"
+    }
+
+    private func exportDiagnosticReport() {
+        guard let data = model.diagnosticReportData() else {
+            backupMessage = "settings.exportFailed"
+            return
+        }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "DayTrace-diagnostic-report.json"
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        do {
+            try data.write(to: url, options: .atomic)
+            backupMessage = "settings.exportSucceeded"
+        } catch {
+            backupMessage = "settings.exportFailed"
+        }
     }
 
     private func showDataLocation() {

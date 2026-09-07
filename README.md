@@ -28,7 +28,7 @@ baseline without changing the validated tracking or communication behavior.
 - Menu bar summary with pause/resume and display modes
 - Launch-at-login control through the native ServiceManagement API
 - Aggregate-only JSON export and an explicit delete-all-data flow
-- Optional logical aggregate backups with deterministic retention; restore is intentionally deferred
+- Versioned local backups with validate → safety backup → replace restore flow; restore never merges data
 - Detailed Timeline V2 with local app intervals and sanitized Chrome website child intervals
 - Background Activity V1 with separate interval lanes for supported NookX visible activity and NetEase audio playback
 
@@ -102,6 +102,24 @@ Native Messaging host: com.daytrace.spike
 
 These values must not be changed casually because they are connected to macOS
 Input Monitoring/TCC identity and Chrome Native Messaging discovery.
+
+## Product Completion V1 additions
+
+The current Internal Beta baseline also includes local Product Completion V1
+foundations: pure hourly/session/transition analytics, App and Website daily
+trends, native Charts presentation, transactional replace restore, range-based
+dataset deletion, on-demand integrity checks with deterministic safe repair,
+privacy-safe diagnostic export, first-run onboarding, exact category rules, and
+presentation-only Hide Identity metadata. These additions preserve the
+accounting boundary: aggregates remain canonical, Timeline remains detail,
+Website remains a Chrome child, and Background Activity remains a separate
+overlapping stream.
+
+Restore accepts recognized backup versions 1–3 and rejects malformed, future,
+negative, non-finite, or structurally incomplete payloads before touching the
+store. Diagnostic exports contain system/subsystem health only, not activity
+history or domains. Exclude Tracking and entity-specific historical deletion
+remain deferred until their runtime semantics can be tested without ambiguity.
 
 ## Build and test
 

@@ -156,3 +156,131 @@ enum DayTraceAnalytics {
         return percentage == 0 ? 0 : percentage
     }
 }
+
+// MARK: - Product Completion analytics
+
+struct HourlyActivityPoint: Identifiable, Equatable {
+    let hour: Int
+    let duration: TimeInterval
+
+    var id: Int { hour }
+}
+
+struct WeekdayHourKey: Hashable, Equatable {
+    let weekday: Int
+    let hour: Int
+}
+
+struct SessionAnalytics: Equatable {
+    let sessionCount: Int
+    let averageDuration: TimeInterval
+    let medianDuration: TimeInterval
+    let longestDuration: TimeInterval
+    let longestSessions: [TimelineAppInterval]
+    let averageByApp: [String: TimeInterval]
+    let longestByApp: [String: TimeInterval]
+}
+
+struct TransitionAnalytics: Identifiable, Equatable {
+    let from: String
+    let to: String
+    let count: Int
+
+    var id: String { "\(from)->\(to)" }
+}
+
+enum DayTraceProductAnalytics {
+    static func hourlyActivity(
+        from intervals: [TimelineAppInterval],
+        calendar: Calendar
+    ) -> [HourlyActivityPoint] {
+        var totals = Array(repeating: 0.0, count: 24)
+        for interval in intervals {
+            add(interval.start, interval.end, to: &totals, calendar: calendar)
+        }
+        return totals.enumerated().map { HourlyActivityPoint(hour: $0.offset, duration: max(0, $0.element)) }
+    }
+
+    static func weekdayHourActivity(
+        from snapshots: [DailyTimelineSnapshot],
+        calendar: Calendar
+    ) -> [WeekdayHourKey: TimeInterval] {
+        var result: [WeekdayHourKey: TimeInterval] = [:]
+        for snapshot in snapshots {
+            for interval in snapshot.appIntervals {
+                var cursor = interval.start
+                while cursor < interval.end {
+                    guard let hourInterval = calendar.dateInterval(of: .hour, for: cursor) else { break }
+                    let segmentEnd = min(interval.end, hourInterval.end)
+                    let weekday = calendar.component(.weekday, from: cursor)
+                    let hour = calendar.component(.hour, from: cursor)
+                    result[WeekdayHourKey(weekday: weekday, hour: hour), default: 0] += segmentEnd.timeIntervalSince(cursor)
+                    cursor = segmentEnd
+                }
+            }
+        }
+        return result
+    }
+
+    static func sessionAnalytics(from intervals: [TimelineAppInterval]) -> SessionAnalytics {
+        let valid = intervals.filter { $0.duration.isFinite && $0.duration > 0 }
+        let durations = valid.map(\.duration).sorted()
+        let median: TimeInterval
+        if durations.isEmpty {
+            median = 0
+        } else if durations.count.isMultiple(of: 2) {
+            median = (durations[durations.count / 2 - 1] + durations[durations.count / 2]) / 2
+        } else {
+            median = durations[durations.count / 2]
+        }
+        var averageByApp: [String: (total: TimeInterval, count: Int)] = [:]
+        var longestByApp: [String: TimeInterval] = [:]
+        for interval in valid {
+            let key = interval.app.bundleIdentifier
+            averageByApp[key, default: (0, 0)].total += interval.duration
+            averageByApp[key, default: (0, 0)].count += 1
+            longestByApp[key] = max(longestByApp[key, default: 0], interval.duration)
+        }
+        return SessionAnalytics(
+            sessionCount: valid.count,
+            averageDuration: valid.isEmpty ? 0 : durations.reduce(0, +) / Double(valid.count),
+            medianDuration: median,
+            longestDuration: durations.last ?? 0,
+            longestSessions: valid.sorted { $0.duration > $1.duration }.prefix(10).map { $0 },
+            averageByApp: averageByApp.mapValues { $0.total / Double(max(1, $0.count)) },
+            longestByApp: longestByApp
+        )
+    }
+
+    static func transitions(from intervals: [TimelineAppInterval]) -> [TransitionAnalytics] {
+        let sorted = intervals.sorted { $0.start < $1.start }
+        var counts: [String: (from: String, to: String, count: Int)] = [:]
+        for pair in zip(sorted, sorted.dropFirst()) {
+            guard pair.0.app.bundleIdentifier != pair.1.app.bundleIdentifier else { continue }
+            let key = "\(pair.0.app.bundleIdentifier)->\(pair.1.app.bundleIdentifier)"
+            counts[key, default: (pair.0.app.bundleIdentifier, pair.1.app.bundleIdentifier, 0)].count += 1
+        }
+        return counts.values
+            .map { TransitionAnalytics(from: $0.from, to: $0.to, count: $0.count) }
+            .sorted { $0.count == $1.count ? $0.id < $1.id : $0.count > $1.count }
+    }
+
+    private static func add(
+        _ start: Date,
+        _ end: Date,
+        to totals: inout [TimeInterval],
+        calendar: Calendar
+    ) {
+        guard end > start else { return }
+        var cursor = start
+        while cursor < end {
+            guard let hourInterval = calendar.dateInterval(of: .hour, for: cursor) else { break }
+            let segmentEnd = min(end, hourInterval.end)
+            let hour = calendar.component(.hour, from: cursor)
+            if (0..<24).contains(hour) {
+                totals[hour] += max(0, segmentEnd.timeIntervalSince(cursor))
+            }
+            cursor = segmentEnd
+        }
+    }
+}

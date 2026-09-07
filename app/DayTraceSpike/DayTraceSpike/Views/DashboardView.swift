@@ -147,7 +147,7 @@ struct DashboardView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(displayedApps(at: date), id: \.self) { app in
-                        AppUsageRow(app: app, duration: durationText(model.appUsage(for: app, at: date)))
+                        AppUsageRow(app: app, duration: durationText(model.appUsage(for: app, at: date)), title: model.metadataStore.presentationName(for: app))
                             .contextMenu {
                                 Button {
                                     model.metadataStore.toggleFavorite(app: app)
@@ -234,7 +234,8 @@ struct DashboardView: View {
                     ForEach(domainNames(at: date), id: \.self) { domain in
                         WebsiteUsageRow(
                             domain: domain,
-                            duration: durationText(model.websiteUsage(for: domain, at: date))
+                            duration: durationText(model.websiteUsage(for: domain, at: date)),
+                            title: model.metadataStore.presentationName(for: domain)
                         )
                         .contextMenu {
                             Button {
@@ -261,10 +262,10 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: DayTraceDesign.spaceM) {
                     DayTraceSectionHeader(title: "metadata.favorites", systemImage: "pin.fill")
                     ForEach(apps, id: \.self) { app in
-                        AppUsageRow(app: app, duration: durationText(model.appUsage(for: app, at: date)))
+                        AppUsageRow(app: app, duration: durationText(model.appUsage(for: app, at: date)), title: model.metadataStore.presentationName(for: app))
                     }
                     ForEach(domains, id: \.self) { domain in
-                        WebsiteUsageRow(domain: domain, duration: durationText(model.websiteUsage(for: domain, at: date)))
+                        WebsiteUsageRow(domain: domain, duration: durationText(model.websiteUsage(for: domain, at: date)), title: model.metadataStore.presentationName(for: domain))
                     }
                 }
             }

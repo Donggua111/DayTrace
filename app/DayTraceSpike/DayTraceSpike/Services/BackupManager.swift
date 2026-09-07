@@ -1,6 +1,288 @@
 import Combine
 import Foundation
 
+enum RestoreResult: Equatable {
+    case restored(appRecords: Int, websiteRecords: Int, timelineRecords: Int)
+    case rejected(String)
+    case failed(String)
+}
+
+enum BackupValidationError: LocalizedError, Equatable {
+    case invalid(String)
+
+    var errorDescription: String? {
+        switch self { case .invalid(let message): return message }
+    }
+}
+
+struct RestoredAppRecord: Equatable {
+    let dateKey: String
+    let bundleIdentifier: String
+    let displayName: String
+    let durationSeconds: Double
+}
+
+struct RestoredWebsiteRecord: Equatable {
+    let dateKey: String
+    let domain: String
+    let durationSeconds: Double
+}
+
+struct RestoredTypingRecord: Equatable {
+    let dateKey: String
+    let englishCharacters: Int64
+    let numberCharacters: Int64
+    let symbolCharacters: Int64
+    let spaceCharacters: Int64
+    let typingSessions: Int64
+    let activeTypingDurationSeconds: Double
+    let metricVersion: Int64
+}
+
+struct RestoredTypingAppRecord: Equatable {
+    let dateKey: String
+    let bundleIdentifier: String
+    let displayName: String
+    let englishCharacters: Int64
+    let numberCharacters: Int64
+    let symbolCharacters: Int64
+    let spaceCharacters: Int64
+    let metricVersion: Int64
+}
+
+struct RestoredAppInterval: Equatable {
+    let idString: String?
+    let dateKey: String
+    let start: Date
+    let end: Date
+    let durationSeconds: Double
+    let bundleIdentifier: String
+    let displayName: String
+}
+
+struct RestoredWebsiteInterval: Equatable {
+    let idString: String?
+    let dateKey: String
+    let start: Date
+    let end: Date
+    let durationSeconds: Double
+    let browserBundleIdentifier: String
+    let domain: String
+    let parentAppIntervalID: String?
+}
+
+struct RestoredBackgroundInterval: Equatable {
+    let idString: String?
+    let dateKey: String
+    let start: Date
+    let end: Date
+    let durationSeconds: Double
+    let bundleIdentifier: String
+    let displayName: String
+    let activityKindRawValue: String
+    let detectorIdentifier: String?
+}
+
+struct ValidatedBackupPayload: Equatable {
+    let backupVersion: Int
+    let appUsage: [RestoredAppRecord]
+    let websiteUsage: [RestoredWebsiteRecord]
+    let typing: [RestoredTypingRecord]
+    let typingByApp: [RestoredTypingAppRecord]
+    let appIntervals: [RestoredAppInterval]
+    let websiteIntervals: [RestoredWebsiteInterval]
+    let backgroundIntervals: [RestoredBackgroundInterval]
+}
+
+enum DayTraceBackupCodec {
+    static let currentVersion = 3
+
+    static func validate(_ data: Data) -> Result<ValidatedBackupPayload, BackupValidationError> {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return .failure(.invalid("Backup JSON is malformed"))
+        }
+        let version = (object["backupVersion"] as? Int) ?? (object["schemaVersion"] as? Int) ?? 1
+        guard (1...currentVersion).contains(version) else {
+            return .failure(.invalid("Unsupported backup version"))
+        }
+        let aggregateObject = (object["aggregates"] as? [String: Any]) ?? object
+        guard let apps = aggregateObject["appUsage"] as? [[String: Any]],
+              let websites = aggregateObject["websiteUsage"] as? [[String: Any]],
+              let typing = aggregateObject["typing"] as? [[String: Any]],
+              let typingByApp = aggregateObject["typingByApp"] as? [[String: Any]] else {
+            return .failure(.invalid("Backup is missing required activity datasets"))
+        }
+        guard apps.count + websites.count + typing.count + typingByApp.count < 200_000 else {
+            return .failure(.invalid("Backup is too large to import safely"))
+        }
+
+        do {
+            let decodedApps = try apps.map(parseApp)
+            let decodedWebsites = try websites.map(parseWebsite)
+            let decodedTyping = try typing.map(parseTyping)
+            let decodedTypingApps = try typingByApp.map(parseTypingApp)
+            let timeline = try parseTimeline(aggregateObject["detailedTimeline"] as? [String: Any])
+            return .success(ValidatedBackupPayload(
+                backupVersion: version,
+                appUsage: decodedApps,
+                websiteUsage: decodedWebsites,
+                typing: decodedTyping,
+                typingByApp: decodedTypingApps,
+                appIntervals: timeline.apps,
+                websiteIntervals: timeline.websites,
+                backgroundIntervals: timeline.background
+            ))
+        } catch {
+            return .failure(.invalid(error.localizedDescription))
+        }
+    }
+
+    private static func parseApp(_ value: [String: Any]) throws -> RestoredAppRecord {
+        RestoredAppRecord(
+            dateKey: try dateKey(value["date"]),
+            bundleIdentifier: try identity(value["bundleIdentifier"]),
+            displayName: try displayName(value["displayName"]),
+            durationSeconds: try duration(value["durationSeconds"])
+        )
+    }
+
+    private static func parseWebsite(_ value: [String: Any]) throws -> RestoredWebsiteRecord {
+        RestoredWebsiteRecord(
+            dateKey: try dateKey(value["date"]),
+            domain: try domain(value["domain"]),
+            durationSeconds: try duration(value["durationSeconds"])
+        )
+    }
+
+    private static func parseTyping(_ value: [String: Any]) throws -> RestoredTypingRecord {
+        RestoredTypingRecord(
+            dateKey: try dateKey(value["date"]),
+            englishCharacters: try count(value["englishCharacters"]),
+            numberCharacters: try count(value["numberCharacters"]),
+            symbolCharacters: try count(value["symbolCharacters"]),
+            spaceCharacters: try count(value["spaceCharacters"]),
+            typingSessions: try count(value["typingSessions"]),
+            activeTypingDurationSeconds: try duration(value["activeTypingDurationSeconds"]),
+            metricVersion: try count(value["metricVersion"])
+        )
+    }
+
+    private static func parseTypingApp(_ value: [String: Any]) throws -> RestoredTypingAppRecord {
+        RestoredTypingAppRecord(
+            dateKey: try dateKey(value["date"]),
+            bundleIdentifier: try identity(value["bundleIdentifier"]),
+            displayName: try displayName(value["displayName"]),
+            englishCharacters: try count(value["englishCharacters"]),
+            numberCharacters: try count(value["numberCharacters"]),
+            symbolCharacters: try count(value["symbolCharacters"]),
+            spaceCharacters: try count(value["spaceCharacters"]),
+            metricVersion: try count(value["metricVersion"])
+        )
+    }
+
+    private static func parseTimeline(_ object: [String: Any]?) throws -> (apps: [RestoredAppInterval], websites: [RestoredWebsiteInterval], background: [RestoredBackgroundInterval]) {
+        guard let object else { return ([], [], []) }
+        let apps = try (object["apps"] as? [[String: Any]] ?? []).map { value in
+            let start = try isoDate(value["start"])
+            let end = try isoDate(value["end"])
+            return RestoredAppInterval(
+                idString: value["id"] as? String,
+                dateKey: try dateKey(value["date"]), start: start, end: end,
+                durationSeconds: try intervalDuration(value["durationSeconds"], start: start, end: end),
+                bundleIdentifier: try identity(value["bundleIdentifier"]),
+                displayName: try displayName(value["displayName"])
+            )
+        }
+        let websites = try (object["websites"] as? [[String: Any]] ?? []).map { value in
+            let start = try isoDate(value["start"])
+            let end = try isoDate(value["end"])
+            return RestoredWebsiteInterval(
+                idString: value["id"] as? String,
+                dateKey: try dateKey(value["date"]), start: start, end: end,
+                durationSeconds: try intervalDuration(value["durationSeconds"], start: start, end: end),
+                browserBundleIdentifier: try identity(value["browser"]),
+                domain: try domain(value["domain"]),
+                parentAppIntervalID: value["parentAppIntervalID"] as? String
+            )
+        }
+        let background = try (object["backgroundIntervals"] as? [[String: Any]] ?? []).map { value in
+            let start = try isoDate(value["start"])
+            let end = try isoDate(value["end"])
+            return RestoredBackgroundInterval(
+                idString: value["id"] as? String,
+                dateKey: try dateKey(value["date"]), start: start, end: end,
+                durationSeconds: try intervalDuration(value["durationSeconds"], start: start, end: end),
+                bundleIdentifier: try identity(value["bundleIdentifier"]),
+                displayName: try displayName(value["displayName"]),
+                activityKindRawValue: try identity(value["activityKind"]),
+                detectorIdentifier: value["detectorIdentifier"] as? String
+            )
+        }
+        return (apps, websites, background)
+    }
+
+    private static func dateKey(_ value: Any?) throws -> String {
+        guard let value = value as? String, value.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil else {
+            throw NSError(domain: "DayTraceBackup", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid date key"])
+        }
+        return value
+    }
+
+    private static func identity(_ value: Any?) throws -> String {
+        guard let value = value as? String, !value.isEmpty, value.count <= 512 else {
+            throw NSError(domain: "DayTraceBackup", code: 2, userInfo: [NSLocalizedDescriptionKey: "Invalid identity"])
+        }
+        return value
+    }
+
+    private static func displayName(_ value: Any?) throws -> String {
+        guard let value = value as? String, !value.isEmpty, value.count <= 512 else {
+            throw NSError(domain: "DayTraceBackup", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid display name"])
+        }
+        return value
+    }
+
+    private static func domain(_ value: Any?) throws -> String {
+        guard let value = value as? String, !value.isEmpty, value.count <= 253,
+              !value.contains("/"), !value.contains(":"),
+              value.split(separator: ".").allSatisfy({ !$0.isEmpty }) else {
+            throw NSError(domain: "DayTraceBackup", code: 4, userInfo: [NSLocalizedDescriptionKey: "Invalid website domain"])
+        }
+        return value
+    }
+
+    private static func count(_ value: Any?) throws -> Int64 {
+        let number = (value as? NSNumber)?.int64Value
+        guard let number, number >= 0 else {
+            throw NSError(domain: "DayTraceBackup", code: 5, userInfo: [NSLocalizedDescriptionKey: "Invalid count"])
+        }
+        return number
+    }
+
+    private static func duration(_ value: Any?) throws -> Double {
+        guard let number = (value as? NSNumber)?.doubleValue, number.isFinite, number >= 0 else {
+            throw NSError(domain: "DayTraceBackup", code: 6, userInfo: [NSLocalizedDescriptionKey: "Invalid duration"])
+        }
+        return number
+    }
+
+    private static func intervalDuration(_ value: Any?, start: Date, end: Date) throws -> Double {
+        let duration = try duration(value)
+        guard end > start, duration > 0 else {
+            throw NSError(domain: "DayTraceBackup", code: 7, userInfo: [NSLocalizedDescriptionKey: "Invalid interval"])
+        }
+        return duration
+    }
+
+    private static func isoDate(_ value: Any?) throws -> Date {
+        guard let value = value as? String,
+              let date = ISO8601DateFormatter().date(from: value) else {
+            throw NSError(domain: "DayTraceBackup", code: 8, userInfo: [NSLocalizedDescriptionKey: "Invalid timestamp"])
+        }
+        return date
+    }
+}
+
 enum AutomaticBackupPolicy {
     static func shouldCreateBackup(lastBackupAt: Date?, at date: Date, calendar: Calendar) -> Bool {
         guard let lastBackupAt else { return true }

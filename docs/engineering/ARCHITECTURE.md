@@ -355,3 +355,32 @@ The following are not part of this architecture freeze:
 - account or cloud sync,
 - public networking,
 - AI-derived classification.
+
+## Product Completion V1 decisions
+
+Product analytics is a pure transformation layer over loaded Timeline and
+daily aggregate snapshots. Hourly activity splits intervals at local hour
+boundaries; sessions are continuous foreground intervals; transitions count
+adjacent changes between stable App identities. These descriptive metrics do
+not infer focus or productivity.
+
+Restore is explicit Replace All Activity Data, not merge import. A validated
+backup is parsed completely before a safety backup and one controlled Core Data
+save. Runtime cursors are cleared and trackers are re-anchored after success.
+Recognized backup versions 1–3 are accepted when their available datasets are
+valid; missing newer datasets remain empty rather than being fabricated.
+
+Range deletion is dataset-specific. App Usage deletion is coupled to Website
+Usage and detailed Timeline for the same date range to avoid orphaned child
+accounting. Integrity checks are manual and return Info/Warning/Error findings;
+only stale open intervals have a deterministic repair path.
+
+Exact Category Rules affect display metadata only, with manual App assignment
+taking precedence over exact rules. Hide Identity is separate from Exclude
+Tracking and currently changes normal presentation only. Exclude Tracking and
+entity-specific historical deletion are deferred until their runtime and
+identity semantics have dedicated regression coverage.
+
+Diagnostic export is versioned and health-only by default: it contains build,
+permission, subsystem, persistence, detector, and record-count metadata, but
+no activity lists, URLs, domains, Timeline rows, paths, or typed content.

@@ -147,6 +147,38 @@ struct HistoryUsageSnapshot: Equatable {
     }
 }
 
+enum ActivityDataset: String, CaseIterable, Hashable, Identifiable {
+    case appUsage
+    case websiteUsage
+    case typingActivity
+    case detailedTimeline
+    case backgroundActivity
+
+    var id: String { rawValue }
+}
+
+enum IntegritySeverity: String, CaseIterable, Equatable {
+    case info
+    case warning
+    case error
+}
+
+struct IntegrityFinding: Identifiable, Equatable {
+    let id: String
+    let severity: IntegritySeverity
+    let code: String
+    let message: String
+}
+
+struct IntegrityReport: Equatable {
+    let checkedAt: Date
+    let recordsScanned: Int
+    let findings: [IntegrityFinding]
+    let safeRepairCount: Int
+
+    var isHealthy: Bool { findings.first(where: { $0.severity == .error || $0.severity == .warning }) == nil }
+}
+
 @objc(AppUsageDailyRecord)
 final class AppUsageDailyRecord: NSManagedObject {}
 
@@ -388,6 +420,45 @@ final class UsageStore: ObservableObject {
         return result
     }
 
+    func dailyAppTrend(for app: AppIdentity, from start: Date, through end: Date) -> [HistoryDay] {
+        guard status.isReady else { return [] }
+        let firstKey = DayTraceDateKey.key(for: calendar.startOfDay(for: start), calendar: calendar)
+        let lastKey = DayTraceDateKey.key(for: calendar.startOfDay(for: end), calendar: calendar)
+        let request = AppUsageDailyRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "bundleIdentifier == %@ AND dateKey >= %@ AND dateKey <= %@", app.bundleIdentifier, firstKey, lastKey)
+        let records = (try? context.fetch(request)) ?? []
+        let values = Dictionary(uniqueKeysWithValues: records.map { ($0.dateKey, max(0, $0.durationSeconds)) })
+        return days(from: start, through: end).map { day in
+            HistoryDay(date: day.date, totalUsage: values[day.key, default: 0])
+        }
+    }
+
+    func dailyWebsiteTrend(for domain: String, from start: Date, through end: Date) -> [HistoryDay] {
+        guard status.isReady else { return [] }
+        let firstKey = DayTraceDateKey.key(for: calendar.startOfDay(for: start), calendar: calendar)
+        let lastKey = DayTraceDateKey.key(for: calendar.startOfDay(for: end), calendar: calendar)
+        let request = WebsiteUsageDailyRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "domain == %@ AND dateKey >= %@ AND dateKey <= %@", domain, firstKey, lastKey)
+        let records = (try? context.fetch(request)) ?? []
+        let values = Dictionary(uniqueKeysWithValues: records.map { ($0.dateKey, max(0, $0.durationSeconds)) })
+        return days(from: start, through: end).map { day in
+            HistoryDay(date: day.date, totalUsage: values[day.key, default: 0])
+        }
+    }
+
+    private func days(from start: Date, through end: Date) -> [(date: Date, key: String)] {
+        let first = calendar.startOfDay(for: start)
+        let last = calendar.startOfDay(for: end)
+        guard first <= last else { return [] }
+        var result: [(Date, String)] = []
+        var cursor = first
+        while cursor <= last {
+            result.append((cursor, DayTraceDateKey.key(for: cursor, calendar: calendar)))
+            cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? last.addingTimeInterval(1)
+        }
+        return result
+    }
+
     func timeline(for date: Date, now: Date = Date()) -> DailyTimelineSnapshot {
         let dayKey = DayTraceDateKey.key(for: date, calendar: calendar)
         guard status.isReady else { return .empty(for: date, calendar: calendar) }
@@ -564,6 +635,224 @@ final class UsageStore: ObservableObject {
         }
     }
 
+    /// Replaces all activity datasets from a fully validated backup payload.
+    /// Core Data changes are kept in one save transaction; a failed save rolls
+    /// back the context and leaves the existing persistent store untouched.
+    @discardableResult
+    func restore(from data: Data) -> RestoreResult {
+        guard status.isReady else { return .failed("Persistence is unavailable") }
+        let validation = DayTraceBackupCodec.validate(data)
+        guard case .success(let payload) = validation else {
+            if case .failure(let error) = validation { return .rejected(error.localizedDescription) }
+            return .rejected("Backup validation failed")
+        }
+
+        let entityNames = [
+            "AppUsageDailyRecord", "WebsiteUsageDailyRecord", "TypingDailyRecord",
+            "TypingAppDailyRecord", "AppUsageIntervalRecord", "WebsiteUsageIntervalRecord",
+            "BackgroundActivityIntervalRecord"
+        ]
+        do {
+            for entityName in entityNames {
+                let objects = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: entityName))
+                objects.forEach(context.delete)
+            }
+            for value in payload.appUsage {
+                let record = AppUsageDailyRecord(context: context)
+                record.dateKey = value.dateKey
+                record.bundleIdentifier = value.bundleIdentifier
+                record.displayName = value.displayName
+                record.durationSeconds = value.durationSeconds
+            }
+            for value in payload.websiteUsage {
+                let record = WebsiteUsageDailyRecord(context: context)
+                record.dateKey = value.dateKey
+                record.browserBundleIdentifier = "com.google.Chrome"
+                record.domain = value.domain
+                record.durationSeconds = value.durationSeconds
+            }
+            for value in payload.typing {
+                let record = TypingDailyRecord(context: context)
+                record.dateKey = value.dateKey
+                record.englishCharacters = value.englishCharacters
+                record.numberCharacters = value.numberCharacters
+                record.symbolCharacters = value.symbolCharacters
+                record.spaceCharacters = value.spaceCharacters
+                record.typingSessions = value.typingSessions
+                record.activeTypingDurationSeconds = value.activeTypingDurationSeconds
+                record.metricVersion = value.metricVersion
+            }
+            for value in payload.typingByApp {
+                let record = TypingAppDailyRecord(context: context)
+                record.dateKey = value.dateKey
+                record.bundleIdentifier = value.bundleIdentifier
+                record.displayName = value.displayName
+                record.englishCharacters = value.englishCharacters
+                record.numberCharacters = value.numberCharacters
+                record.symbolCharacters = value.symbolCharacters
+                record.spaceCharacters = value.spaceCharacters
+                record.metricVersion = value.metricVersion
+            }
+            for value in payload.appIntervals {
+                let record = AppUsageIntervalRecord(context: context)
+                record.idString = value.idString ?? UUID().uuidString
+                record.dateKey = value.dateKey
+                record.startAt = value.start
+                record.endAt = value.end
+                record.durationSeconds = value.durationSeconds
+                record.isOpen = false
+                record.bundleIdentifier = value.bundleIdentifier
+                record.displayName = value.displayName
+            }
+            for value in payload.websiteIntervals {
+                let record = WebsiteUsageIntervalRecord(context: context)
+                record.idString = value.idString ?? UUID().uuidString
+                record.dateKey = value.dateKey
+                record.startAt = value.start
+                record.endAt = value.end
+                record.durationSeconds = value.durationSeconds
+                record.isOpen = false
+                record.browserBundleIdentifier = value.browserBundleIdentifier
+                record.domain = value.domain
+                record.parentAppIntervalID = value.parentAppIntervalID
+            }
+            for value in payload.backgroundIntervals {
+                let record = BackgroundActivityIntervalRecord(context: context)
+                record.idString = value.idString ?? UUID().uuidString
+                record.dateKey = value.dateKey
+                record.startAt = value.start
+                record.endAt = value.end
+                record.durationSeconds = value.durationSeconds
+                record.isOpen = false
+                record.bundleIdentifier = value.bundleIdentifier
+                record.displayName = value.displayName
+                record.activityKindRawValue = value.activityKindRawValue
+                record.detectorIdentifier = value.detectorIdentifier ?? "restored"
+            }
+            try saveContext()
+            resetRuntimeCaches(at: Date())
+            status = .ready
+            revision += 1
+            return .restored(
+                appRecords: payload.appUsage.count,
+                websiteRecords: payload.websiteUsage.count,
+                timelineRecords: payload.appIntervals.count + payload.websiteIntervals.count + payload.backgroundIntervals.count
+            )
+        } catch {
+            context.rollback()
+            status = .degraded(error.localizedDescription)
+            return .failed(error.localizedDescription)
+        }
+    }
+
+    @discardableResult
+    func deleteActivity(
+        from start: Date,
+        through end: Date,
+        datasets: Set<ActivityDataset>,
+        calendar: Calendar? = nil
+    ) -> Bool {
+        guard status.isReady, end >= start else { return false }
+        let activeCalendar = calendar ?? self.calendar
+        let firstKey = DayTraceDateKey.key(for: activeCalendar.startOfDay(for: start), calendar: activeCalendar)
+        let lastKey = DayTraceDateKey.key(for: activeCalendar.startOfDay(for: end), calendar: activeCalendar)
+        var selected = datasets
+        if selected.contains(.appUsage) { selected.insert(.websiteUsage) }
+        if selected.contains(.appUsage) { selected.insert(.detailedTimeline) }
+        do {
+            for dataset in selected {
+                let entityName: String
+                switch dataset {
+                case .appUsage: entityName = "AppUsageDailyRecord"
+                case .websiteUsage: entityName = "WebsiteUsageDailyRecord"
+                case .typingActivity: entityName = "TypingDailyRecord"
+                case .detailedTimeline: entityName = "AppUsageIntervalRecord"
+                case .backgroundActivity: entityName = "BackgroundActivityIntervalRecord"
+                }
+                let request = NSFetchRequest<NSManagedObject>(entityName: entityName)
+                request.predicate = NSPredicate(format: "dateKey >= %@ AND dateKey <= %@", firstKey, lastKey)
+                try context.fetch(request).forEach(context.delete)
+                if dataset == .appUsage {
+                    let typingApps = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: "TypingAppDailyRecord"))
+                    typingApps.filter { ($0.value(forKey: "dateKey") as? String ?? "") >= firstKey && ($0.value(forKey: "dateKey") as? String ?? "") <= lastKey }.forEach(context.delete)
+                }
+                if dataset == .detailedTimeline {
+                    let websites = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: "WebsiteUsageIntervalRecord"))
+                    websites.filter { ($0.value(forKey: "dateKey") as? String ?? "") >= firstKey && ($0.value(forKey: "dateKey") as? String ?? "") <= lastKey }.forEach(context.delete)
+                }
+            }
+            try saveContext()
+            resetRuntimeCaches(at: Date())
+            revision += 1
+            return true
+        } catch {
+            context.rollback()
+            status = .degraded(error.localizedDescription)
+            return false
+        }
+    }
+
+    func integrityReport(at date: Date = Date()) -> IntegrityReport {
+        guard status.isReady else {
+            return IntegrityReport(checkedAt: date, recordsScanned: 0, findings: [IntegrityFinding(id: "store", severity: .error, code: "store-unavailable", message: "Persistence is unavailable")], safeRepairCount: 0)
+        }
+        var scanned = 0
+        var findings: [IntegrityFinding] = []
+        let apps = (try? context.fetch(AppUsageDailyRecord.fetchRequest())) ?? []
+        scanned += apps.count
+        for record in apps where !record.durationSeconds.isFinite || record.durationSeconds < 0 {
+            findings.append(IntegrityFinding(id: "app-\(record.objectID.uriRepresentation())", severity: .error, code: "invalid-duration", message: "An app aggregate has an invalid duration."))
+        }
+        let websites = (try? context.fetch(WebsiteUsageDailyRecord.fetchRequest())) ?? []
+        scanned += websites.count
+        for record in websites where !record.durationSeconds.isFinite || record.durationSeconds < 0 {
+            findings.append(IntegrityFinding(id: "website-\(record.objectID.uriRepresentation())", severity: .error, code: "invalid-duration", message: "A website aggregate has an invalid duration."))
+        }
+        let typing = (try? context.fetch(TypingDailyRecord.fetchRequest())) ?? []
+        scanned += typing.count
+        for record in typing where record.englishCharacters < 0 || record.numberCharacters < 0 || record.symbolCharacters < 0 || record.spaceCharacters < 0 || !record.activeTypingDurationSeconds.isFinite || record.activeTypingDurationSeconds < 0 {
+            findings.append(IntegrityFinding(id: "typing-\(record.objectID.uriRepresentation())", severity: .error, code: "invalid-typing", message: "Typing aggregate fields are invalid."))
+        }
+        let appIntervals = (try? context.fetch(AppUsageIntervalRecord.fetchRequest())) ?? []
+        let websiteIntervals = (try? context.fetch(WebsiteUsageIntervalRecord.fetchRequest())) ?? []
+        let backgroundIntervals = (try? context.fetch(BackgroundActivityIntervalRecord.fetchRequest())) ?? []
+        scanned += appIntervals.count + websiteIntervals.count + backgroundIntervals.count
+        for interval in appIntervals where !interval.durationSeconds.isFinite || interval.durationSeconds < 0 || interval.endAt < interval.startAt {
+            findings.append(IntegrityFinding(id: interval.idString, severity: .error, code: "invalid-interval", message: "A foreground interval is invalid."))
+        }
+        for interval in websiteIntervals where !interval.durationSeconds.isFinite || interval.durationSeconds < 0 || interval.endAt < interval.startAt {
+            findings.append(IntegrityFinding(id: interval.idString, severity: .error, code: "invalid-interval", message: "A website interval is invalid."))
+        }
+        for interval in backgroundIntervals where !interval.durationSeconds.isFinite || interval.durationSeconds < 0 || interval.endAt < interval.startAt {
+            findings.append(IntegrityFinding(id: interval.idString, severity: .error, code: "invalid-interval", message: "A background interval is invalid."))
+        }
+        let openCount = appIntervals.filter(\.isOpen).count + websiteIntervals.filter(\.isOpen).count + backgroundIntervals.filter(\.isOpen).count
+        if openCount > 0 {
+            findings.append(IntegrityFinding(id: "open-intervals", severity: .warning, code: "stale-open-interval", message: "Open runtime intervals will be closed on the next checkpoint."))
+        }
+        return IntegrityReport(checkedAt: date, recordsScanned: scanned, findings: findings, safeRepairCount: openCount)
+    }
+
+    @discardableResult
+    func repairIntegrity(at date: Date = Date()) -> Int {
+        guard status.isReady else { return 0 }
+        var repaired = 0
+        do {
+            let appIntervals = try context.fetch(AppUsageIntervalRecord.fetchRequest()).filter(\.isOpen)
+            appIntervals.forEach { close($0, at: date); repaired += 1 }
+            let websiteIntervals = try context.fetch(WebsiteUsageIntervalRecord.fetchRequest()).filter(\.isOpen)
+            websiteIntervals.forEach { close($0, at: date); repaired += 1 }
+            let backgroundIntervals = try context.fetch(BackgroundActivityIntervalRecord.fetchRequest()).filter(\.isOpen)
+            backgroundIntervals.forEach { $0.endAt = max($0.startAt, date); $0.durationSeconds = max(0, $0.endAt.timeIntervalSince($0.startAt)); $0.isOpen = false; repaired += 1 }
+            if repaired > 0 { try saveContext() }
+            return repaired
+        } catch {
+            context.rollback()
+            status = .degraded(error.localizedDescription)
+            return 0
+        }
+    }
+
     @discardableResult
     func setTimelineEnabled(_ enabled: Bool, at date: Date = Date()) -> Bool {
         guard status.isReady else { return false }
@@ -693,13 +982,13 @@ final class UsageStore: ObservableObject {
             let backgroundIntervals = (try? context.fetch(BackgroundActivityIntervalRecord.fetchRequest())) ?? []
             object["detailedTimeline"] = [
                 "apps": intervalApps.sorted { $0.startAt < $1.startAt }.map {
-                    ["date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "bundleIdentifier": $0.bundleIdentifier, "displayName": $0.displayName]
+                    ["id": $0.idString, "date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "bundleIdentifier": $0.bundleIdentifier, "displayName": $0.displayName]
                 },
                 "websites": intervalWebsites.sorted { $0.startAt < $1.startAt }.map {
-                    ["date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "browser": $0.browserBundleIdentifier, "domain": $0.domain]
+                    ["id": $0.idString, "date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "browser": $0.browserBundleIdentifier, "domain": $0.domain, "parentAppIntervalID": $0.parentAppIntervalID as Any]
                 },
                 "backgroundIntervals": backgroundIntervals.sorted { $0.startAt < $1.startAt }.map {
-                    ["date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "bundleIdentifier": $0.bundleIdentifier, "displayName": $0.displayName, "activityKind": $0.activityKindRawValue]
+                    ["id": $0.idString, "date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "bundleIdentifier": $0.bundleIdentifier, "displayName": $0.displayName, "activityKind": $0.activityKindRawValue, "detectorIdentifier": $0.detectorIdentifier]
                 }
             ]
         }
@@ -1755,6 +2044,19 @@ final class UsageStore: ObservableObject {
             ensureBaseLoaded(for: dayKey)
         }
         progress[key] = duration
+    }
+
+    private func resetRuntimeCaches(at date: Date) {
+        loadedDayKeys.removeAll()
+        baseSnapshotsByDay.removeAll()
+        runtimeAppDurationsByDay.removeAll()
+        runtimeDomainDurationsByDay.removeAll()
+        runtimeTypingByDay.removeAll()
+        foregroundProgressByInterval.removeAll()
+        domainProgressByInterval.removeAll()
+        timelineRuntime = TimelineRuntimeState(anchorDate: date)
+        backgroundRuntime = BackgroundRuntimeState(anchorDate: date)
+        lastCheckpointAt = date
     }
 
     private static func defaultStoreURL() -> URL {

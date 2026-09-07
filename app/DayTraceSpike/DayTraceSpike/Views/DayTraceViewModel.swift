@@ -201,6 +201,92 @@ final class DayTraceViewModel: ObservableObject {
         return backupManager.createBackup(using: usageStore)
     }
 
+    @discardableResult
+    func restoreBackup(from data: Data) -> RestoreResult {
+        // Close live writers before replacing persisted objects. The normal
+        // backup is the safety copy for this destructive replace operation.
+        guard checkpoint(allowAutomaticBackup: false, finalizeTimeline: true) else {
+            return .failed("Unable to checkpoint current activity")
+        }
+        guard backupManager.createBackup(using: usageStore) != nil else {
+            return .failed("Unable to create restore safety backup")
+        }
+        backgroundActivity.stop()
+        let result = usageStore.restore(from: data)
+        if case .restored = result {
+            typingCounter.resetMetrics()
+            foregroundTracker.resetRuntimeState()
+            domainTracker.resetRuntimeState()
+            backgroundActivity.start()
+            foregroundTracker.refreshNow()
+            backgroundActivity.refresh()
+        } else {
+            backgroundActivity.start()
+        }
+        return result
+    }
+
+    func integrityReport() -> IntegrityReport {
+        usageStore.integrityReport()
+    }
+
+    @discardableResult
+    func repairIntegrity() -> Int {
+        let repaired = usageStore.repairIntegrity()
+        if repaired > 0 { objectWillChange.send() }
+        return repaired
+    }
+
+    @discardableResult
+    func deleteActivity(from start: Date, through end: Date, datasets: Set<ActivityDataset>) -> Bool {
+        guard checkpoint(allowAutomaticBackup: false, finalizeTimeline: true) else { return false }
+        let didDelete = usageStore.deleteActivity(from: start, through: end, datasets: datasets)
+        if didDelete {
+            foregroundTracker.resetRuntimeState()
+            domainTracker.resetRuntimeState()
+            backgroundActivity.refresh()
+            foregroundTracker.refreshNow()
+        }
+        return didDelete
+    }
+
+    func diagnosticReportData() -> Data? {
+        let timeline = usageStore.timelineStatistics(enabled: timelineEnabled)
+        let background = usageStore.backgroundDataStatistics()
+        let report: [String: Any] = [
+            "diagnosticReportVersion": 1,
+            "dayTraceVersion": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development",
+            "macOS": ProcessInfo.processInfo.operatingSystemVersionString,
+            "architecture": "arm64",
+            "bundleIdentifier": Bundle.main.bundleIdentifier ?? "com.daytrace.spike",
+            "inputMonitoring": [
+                "status": typingCounter.permissionStatus.rawValue,
+                "cgPreflight": typingCounter.cgPreflightListenAccess,
+                "eventTapEnabled": typingCounter.eventTapEnabled
+            ],
+            "tracking": [
+                "running": foregroundTracker.isTracking,
+                "systemState": foregroundTracker.systemState.rawValue
+            ],
+            "chrome": [
+                "ipcStatus": socketBridge.status.rawValue,
+                "nativeHost": "com.daytrace.spike"
+            ],
+            "persistence": [
+                "status": String(describing: usageStore.status),
+                "timelineEnabled": timeline.enabled,
+                "appIntervalCount": timeline.appIntervalCount,
+                "websiteIntervalCount": timeline.websiteIntervalCount,
+                "backgroundIntervalCount": background.intervalCount
+            ],
+            "backup": [
+                "automaticEnabled": backupManager.isEnabled,
+                "backupVersion": 3
+            ]
+        ]
+        return try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys])
+    }
+
     func exportAggregatesJSON(includeDetailedTimeline: Bool = false) -> Data? {
         checkpoint()
         return usageStore.exportAggregatesJSON(includeDetailedTimeline: includeDetailedTimeline)
@@ -208,6 +294,14 @@ final class DayTraceViewModel: ObservableObject {
 
     func timeline(for date: Date, now: Date = Date()) -> DailyTimelineSnapshot {
         usageStore.timeline(for: date, now: now)
+    }
+
+    func dailyAppTrend(for app: AppIdentity, range: HistoryRange, at date: Date = Date()) -> [HistoryDay] {
+        usageStore.dailyAppTrend(for: app, from: range.startDate(at: date, calendar: .autoupdatingCurrent), through: date)
+    }
+
+    func dailyWebsiteTrend(for domain: String, range: HistoryRange, at date: Date = Date()) -> [HistoryDay] {
+        usageStore.dailyWebsiteTrend(for: domain, from: range.startDate(at: date, calendar: .autoupdatingCurrent), through: date)
     }
 
     func backgroundSummary(for date: Date = Date(), now: Date = Date()) -> BackgroundActivitySummary {

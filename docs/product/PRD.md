@@ -578,3 +578,19 @@ A usable local build that the primary user can run daily for real-world testing.
 A stable personal-use release after dogfooding and verification.
 
 Do not create duplicate repository copies for each stage. Use Git commits/tags/branches as appropriate.
+
+## 17. Product Completion V1 surface
+
+The Internal Beta product surface now includes descriptive Analytics V3 in
+History (hourly activity, sessions, transitions, and App/Website daily trends),
+versioned local Replace Restore, range-based activity deletion, manual Data
+Integrity checks, privacy-safe diagnostic export, concise first-run onboarding,
+exact category rules, and presentation-only Hide Identity.
+
+Restore never merges or executes imported content. It validates the complete
+JSON payload, creates a safety backup, replaces supported activity datasets in
+one persistence transaction, and re-anchors runtime tracking. Diagnostic
+exports intentionally omit activity history, domains, URLs, paths, and typed
+content. Exclude Tracking and identity-specific historical deletion remain
+future decisions because their runtime semantics require additional safety
+coverage.

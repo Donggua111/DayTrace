@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 struct HistoryView: View {
@@ -29,6 +30,7 @@ struct HistoryView: View {
                         onNext: { timelineDate = min(Calendar.autoupdatingCurrent.startOfDay(for: context.date), Calendar.autoupdatingCurrent.date(byAdding: .day, value: 1, to: timelineDate) ?? timelineDate) },
                         onToday: { timelineDate = Calendar.autoupdatingCurrent.startOfDay(for: context.date) }
                     )
+                    analyticsSection(timeline: timeline)
                     BackgroundActivityTimelineView(model: model, date: timelineDate, now: context.date)
                     comparisonSection(comparison: comparison)
                     heatmap(snapshot: heatmapSnapshot, asOf: context.date)
@@ -46,14 +48,14 @@ struct HistoryView: View {
         .tint(DayTraceDesign.accent)
         .searchable(text: $searchText, placement: .toolbar, prompt: "history.search")
         .sheet(item: $selectedApp) { app in
-            AppDetailView(app: app, snapshot: model.history(for: selectedRange), languageRawValue: languageRawValue)
+            AppDetailView(app: app, snapshot: model.history(for: selectedRange), languageRawValue: languageRawValue, model: model, range: selectedRange)
         }
         .sheet(isPresented: Binding(
             get: { selectedWebsite != nil },
             set: { if !$0 { selectedWebsite = nil } }
         )) {
             if let selectedWebsite {
-                WebsiteDetailView(domain: selectedWebsite, snapshot: model.history(for: selectedRange), languageRawValue: languageRawValue)
+                WebsiteDetailView(domain: selectedWebsite, snapshot: model.history(for: selectedRange), languageRawValue: languageRawValue, model: model, range: selectedRange)
             }
         }
     }
@@ -112,7 +114,7 @@ struct HistoryView: View {
                 } else {
                     ForEach(filteredApps(snapshot), id: \.self) { app in
                         Button { selectedApp = app } label: {
-                            AppUsageRow(app: app, duration: Text(duration(snapshot.appUsageByApp[app, default: 0])))
+                            AppUsageRow(app: app, duration: Text(duration(snapshot.appUsageByApp[app, default: 0])), title: model.metadataStore.presentationName(for: app))
                         }
                         .buttonStyle(.plain)
                         }
@@ -138,7 +140,7 @@ struct HistoryView: View {
                 } else {
                     ForEach(filteredDomains(snapshot), id: \.self) { domain in
                         Button { selectedWebsite = domain } label: {
-                            WebsiteUsageRow(domain: domain, duration: Text(duration(snapshot.websiteUsageByDomain[domain, default: 0])))
+                            WebsiteUsageRow(domain: domain, duration: Text(duration(snapshot.websiteUsageByDomain[domain, default: 0])), title: model.metadataStore.presentationName(for: domain))
                         }
                         .buttonStyle(.plain)
                     }
@@ -262,6 +264,69 @@ struct HistoryView: View {
         }
     }
 
+    private func analyticsSection(timeline: DailyTimelineSnapshot) -> some View {
+        let hourly = DayTraceProductAnalytics.hourlyActivity(
+            from: timeline.appIntervals,
+            calendar: Calendar.autoupdatingCurrent
+        )
+        let sessions = DayTraceProductAnalytics.sessionAnalytics(from: timeline.appIntervals)
+        let transitions = DayTraceProductAnalytics.transitions(from: timeline.appIntervals).prefix(5)
+        return UsageCard {
+            VStack(alignment: .leading, spacing: DayTraceDesign.spaceM) {
+                DayTraceSectionHeader(title: "history.analytics.title", systemImage: "chart.xyaxis.line")
+                Chart(hourly) { point in
+                    BarMark(
+                        x: .value("history.analytics.hour", point.hour),
+                        y: .value("history.analytics.duration", point.duration)
+                    )
+                    .foregroundStyle(DayTraceDesign.accent.gradient)
+                }
+                .chartXAxis { AxisMarks(values: [0, 6, 12, 18, 23]) }
+                .chartYAxis { AxisMarks(position: .leading) }
+                .frame(height: 150)
+                .accessibilityLabel(Text("history.analytics.hourly"))
+                .accessibilityValue(Text("history.analytics.hourlySummary"))
+
+                HStack(spacing: DayTraceDesign.spaceXL) {
+                    analyticsMetric("history.analytics.sessions", value: sessions.sessionCount.formatted())
+                    analyticsMetric("history.analytics.averageSession", value: duration(sessions.averageDuration))
+                    analyticsMetric("history.analytics.longestSession", value: duration(sessions.longestDuration))
+                }
+
+                if !transitions.isEmpty {
+                    Divider()
+                    Text("history.analytics.transitions").font(DayTraceDesign.bodyMedium)
+                    ForEach(Array(transitions)) { transition in
+                        HStack {
+                            Text(displayName(for: transition.from, in: timeline))
+                                .lineLimit(1)
+                            Image(systemName: "arrow.right")
+                                .foregroundStyle(.secondary)
+                            Text(displayName(for: transition.to, in: timeline))
+                                .lineLimit(1)
+                            Spacer()
+                            Text(transition.count, format: .number)
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(DayTraceDesign.caption)
+                    }
+                }
+            }
+        }
+    }
+
+    private func analyticsMetric(_ title: LocalizedStringKey, value: String) -> some View {
+        VStack(alignment: .leading, spacing: DayTraceDesign.spaceXS) {
+            Text(title).font(DayTraceDesign.caption).foregroundStyle(.secondary)
+            Text(value).font(DayTraceDesign.bodyMedium).monospacedDigit()
+        }
+    }
+
+    private func displayName(for bundleIdentifier: String, in timeline: DailyTimelineSnapshot) -> String {
+        timeline.appIntervals.first(where: { $0.app.bundleIdentifier == bundleIdentifier })?.app.displayName ?? bundleIdentifier
+    }
+
     private func sortedApps(_ snapshot: HistoryUsageSnapshot) -> [AppIdentity] {
         snapshot.appUsageByApp.keys.sorted {
             let left = snapshot.appUsageByApp[$0, default: 0]
@@ -277,7 +342,7 @@ struct HistoryView: View {
 
     private func categoryTotals(_ snapshot: HistoryUsageSnapshot) -> [String: TimeInterval] {
         snapshot.appUsageByApp.reduce(into: [:]) { totals, entry in
-            if let category = model.metadataStore.category(for: entry.key) {
+            if let category = model.metadataStore.resolvedCategory(for: entry.key) {
                 totals[category, default: 0] += entry.value
             }
         }
