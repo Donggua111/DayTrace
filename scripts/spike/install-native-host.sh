@@ -8,11 +8,17 @@ fi
 
 HOST_EXECUTABLE="$1"
 EXTENSION_ID="$2"
+EXPECTED_EXTENSION_ID="mmnoopahcchjobiajnhembdlipkhbjgo"
 HOST_DIR="$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts"
 MANIFEST_PATH="$HOST_DIR/com.daytrace.spike.json"
 
 [[ -x "$HOST_EXECUTABLE" ]] || { echo "Native host is not executable: $HOST_EXECUTABLE" >&2; exit 1; }
 [[ "$EXTENSION_ID" != *"/"* && "$EXTENSION_ID" != *":"* ]] || { echo "Invalid extension ID" >&2; exit 1; }
+[[ "$EXTENSION_ID" == "$EXPECTED_EXTENSION_ID" ]] || {
+  echo "Unexpected DayTrace extension ID: $EXTENSION_ID" >&2
+  echo "Expected installed development extension ID: $EXPECTED_EXTENSION_ID" >&2
+  exit 1
+}
 
 mkdir -p "$HOST_DIR"
 chmod 700 "$HOST_DIR"

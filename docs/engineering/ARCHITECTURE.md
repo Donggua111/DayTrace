@@ -132,11 +132,11 @@ The App bundle ID must remain stable because it is associated with macOS Input
 Monitoring/TCC identity. The Native Messaging host name must remain stable
 because Chrome discovers the host by that exact name.
 
-The Chrome extension ID is external runtime configuration and is not changed by
-the source baseline work. Native Messaging has one source of truth for this
-spike: `extension/chrome/service-worker.js` requests `com.daytrace.spike`, and
-the installed user-level manifest must use the same name, filename, and
-allowed origin for the currently loaded unpacked extension.
+The current unpacked development extension ID is
+`mmnoopahcchjobiajnhembdlipkhbjgo`, confirmed from the active Chrome profile.
+Native Messaging has one source of truth for this spike:
+`extension/chrome/service-worker.js` requests `com.daytrace.spike`, and the
+installer accepts only this extension ID when writing the user-level manifest.
 
 ## Foreground usage
 

@@ -211,8 +211,9 @@ Expected:
 
 ### T-WEB-004 — Native Messaging discovery and website attribution
 1. Open `chrome://extensions` with Developer Mode enabled.
-2. Record the exact DayTrace extension ID and confirm it matches the installed
-   Native Messaging `allowed_origins` value.
+2. Confirm the DayTrace extension ID is
+   `mmnoopahcchjobiajnhembdlipkhbjgo` and that it matches the installed Native
+   Messaging `allowed_origins` value.
 3. Reload the extension and open its Service Worker console.
 4. Confirm there is no `Specified native messaging host not found` error.
 5. Open DayTrace and confirm IPC status becomes Connected.
@@ -489,6 +490,15 @@ extension ID shown by Chrome when running:
 ```text
 scripts/spike/install-native-host.sh <native-host-executable> <extension-id>
 ```
+
+The repository static regression check is:
+
+```text
+scripts/spike/test-native-host-config.sh
+```
+
+It rejects reintroduction of the stale development extension identity and does
+not read the user's Chrome profile.
 
 The app must be running before the host can deliver a domain message. The host
 fails quickly when the app is unavailable and does not cache messages.
