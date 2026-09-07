@@ -149,7 +149,31 @@ If one minute is counted for `chatgpt.com`, that minute is already part of Chrom
 
 ---
 
-## 5. Typing analytics
+## 5. Detailed Timeline V2
+
+The product may present a chronological local-day timeline in addition to its
+canonical daily aggregates. Timeline intervals are detail records for
+visualization and review; they do not change Total Mac Usage or any aggregate
+analytics.
+
+The App timeline stores stable app identity, display name, local date key,
+start, end, duration, and open-state recovery metadata. Chrome website children
+store only Chrome identity and a sanitized domain. No URL, title, path, query,
+content, clipboard, screenshot, typed text, or keyboard event detail is stored.
+
+Intervals are split at local midnight, closed at lock/sleep/pause/termination,
+and checkpointed in place. An interrupted open interval is closed at its last
+durable checkpoint on relaunch. Chrome gaps are derived from the Chrome parent
+interval instead of stored as a separate activity stream.
+
+Detailed Timeline storage is enabled by default and can be disabled in
+Settings. Disabling stops new detail records but leaves daily aggregates and
+existing timeline history intact. The user can delete detailed timeline
+history without deleting daily aggregates. Aggregate export remains compatible
+by default; detailed timeline export is opt-in and backups use a versioned
+envelope.
+
+## 6. Typing analytics
 
 Typing analytics has two layers.
 

@@ -18,6 +18,9 @@ final class DayTraceViewModel: ObservableObject {
     private var terminationStarted = false
     private var cachedSnapshotDate: Date?
     private var cachedSnapshot: DailyUsageSnapshot?
+    @Published private(set) var timelineEnabled: Bool
+
+    static let timelineEnabledKey = "daytrace.timeline.enabled"
 
     init(usageStore: UsageStore? = nil) {
         let store = usageStore ?? UsageStore()
@@ -30,6 +33,7 @@ final class DayTraceViewModel: ObservableObject {
         backupManager = BackupManager()
         metadataStore = MetadataStore()
         launchAtLogin = LaunchAtLoginController()
+        timelineEnabled = UserDefaults.standard.object(forKey: Self.timelineEnabledKey) as? Bool ?? true
         let socket = UnixSocketBridge(messageHandler: { domain in
             Task { @MainActor in
                 domains.receive(domain: domain)
@@ -124,11 +128,13 @@ final class DayTraceViewModel: ObservableObject {
     }
 
     @discardableResult
-    func checkpoint(at date: Date = Date(), allowAutomaticBackup: Bool = true) -> Bool {
+    func checkpoint(at date: Date = Date(), allowAutomaticBackup: Bool = true, finalizeTimeline: Bool = false) -> Bool {
         let didPersist = usageStore.checkpoint(
             foregroundTracker: foregroundTracker,
             domainTracker: domainTracker,
-            at: date
+            at: date,
+            timelineEnabled: timelineEnabled,
+            finalizeTimeline: finalizeTimeline
         )
         guard didPersist else { return false }
         if allowAutomaticBackup, backupManager.isEnabled {
@@ -173,9 +179,36 @@ final class DayTraceViewModel: ObservableObject {
         return backupManager.createBackup(using: usageStore)
     }
 
-    func exportAggregatesJSON() -> Data? {
+    func exportAggregatesJSON(includeDetailedTimeline: Bool = false) -> Data? {
         checkpoint()
-        return usageStore.exportAggregatesJSON()
+        return usageStore.exportAggregatesJSON(includeDetailedTimeline: includeDetailedTimeline)
+    }
+
+    func timeline(for date: Date, now: Date = Date()) -> DailyTimelineSnapshot {
+        usageStore.timeline(for: date, now: now)
+    }
+
+    func timelineStatistics() -> TimelineDataStatistics {
+        usageStore.timelineStatistics(enabled: timelineEnabled)
+    }
+
+    @discardableResult
+    func setTimelineEnabled(_ enabled: Bool) -> Bool {
+        guard enabled != timelineEnabled else { return true }
+        let now = Date()
+        if enabled {
+            guard usageStore.setTimelineEnabled(true, at: now) else { return false }
+        } else {
+            guard checkpoint(at: now, allowAutomaticBackup: false), usageStore.setTimelineEnabled(false, at: now) else { return false }
+        }
+        timelineEnabled = enabled
+        UserDefaults.standard.set(enabled, forKey: Self.timelineEnabledKey)
+        return true
+    }
+
+    @discardableResult
+    func deleteTimelineHistory() -> Bool {
+        usageStore.deleteTimelineHistory()
     }
 
     @discardableResult
@@ -216,7 +249,7 @@ final class DayTraceViewModel: ObservableObject {
         // Persist the final foreground/domain snapshot before tearing down
         // the socket. Event Tap cleanup is bounded and continues on its own
         // run loop; termination is never blocked waiting for it.
-        checkpoint()
+        checkpoint(finalizeTimeline: true)
         socketBridge.stop()
     }
 }

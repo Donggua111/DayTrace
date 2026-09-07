@@ -29,10 +29,12 @@ baseline without changing the validated tracking or communication behavior.
 - Launch-at-login control through the native ServiceManagement API
 - Aggregate-only JSON export and an explicit delete-all-data flow
 - Optional logical aggregate backups with deterministic retention; restore is intentionally deferred
+- Detailed Timeline V2 with local app intervals and sanitized Chrome website child intervals
 
 Core Data + SQLite local persistence is part of the implemented Internal Beta
-core. History reads the existing daily aggregates; it does not add a second
-storage layer or retain raw activity events.
+core. Daily aggregates remain canonical for totals and analytics; Timeline V2
+adds a separate interval history for chronological detail without retaining
+raw activity events.
 
 Metadata such as pins and App categories is stored separately in UserDefaults
 and never changes usage identity or historical aggregate values. Backup files

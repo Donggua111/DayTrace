@@ -3890,6 +3890,108 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "取消置顶" } }
       }
     },
+    "settings.exportDetailedTimeline" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Include detailed timeline" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "包含详细时间线" } }
+      }
+    },
+    "settings.timeline" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Detailed Timeline" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "详细时间线" } }
+      }
+    },
+    "settings.timeline.appIntervals" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "App intervals" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "应用区间" } }
+      }
+    },
+    "settings.timeline.delete" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Detailed Timeline History" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除详细时间线历史" } }
+      }
+    },
+    "settings.timeline.deleteConfirm" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除" } }
+      }
+    },
+    "settings.timeline.deleteMessage" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Only detailed timeline intervals will be removed. Daily totals remain." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "只会删除详细时间线区间，按日汇总数据会保留。" } }
+      }
+    },
+    "settings.timeline.deleteSucceeded" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Detailed timeline history deleted." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "详细时间线历史已删除。" } }
+      }
+    },
+    "settings.timeline.deleteTitle" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Detailed Timeline?" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "删除详细时间线？" } }
+      }
+    },
+    "settings.timeline.enabled" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Store Detailed Timeline" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "存储详细时间线" } }
+      }
+    },
+    "settings.timeline.note" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "When enabled, DayTrace stores private app and sanitized website intervals for the Timeline view. Daily aggregates continue when it is off." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "开启后，DayTrace 会为时间线保存私有的应用区间和已清理的网站区间。关闭后按日汇总仍会继续。" } }
+      }
+    },
+    "settings.timeline.websiteIntervals" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Website intervals" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "网站区间" } }
+      }
+    },
+    "timeline.empty" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Detailed timeline was not recorded for this date." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "这一天没有记录详细时间线。" } }
+      }
+    },
+    "timeline.midnight" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "12 AM" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "0 点" } }
+      }
+    },
+    "timeline.now" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Now" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "现在" } }
+      }
+    },
+    "timeline.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Timeline" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "时间线" } }
+      }
+    },
+    "timeline.today" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Today" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "今天" } }
+      }
+    },
+    "timeline.unattributedChrome" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unattributed Chrome" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "未归因的 Chrome 使用" } }
+      }
+    },
     "usage.websiteEmpty" : {
       "extractionState" : "stale",
       "localizations" : {

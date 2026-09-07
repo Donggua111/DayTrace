@@ -48,6 +48,8 @@
 		A10000000000000000000032 /* BackupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000037 /* BackupManager.swift */; };
 		A10000000000000000000033 /* DetailViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000038 /* DetailViews.swift */; };
 		A10000000000000000000034 /* MetadataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000039 /* MetadataStore.swift */; };
+		A10000000000000000000035 /* TimelineModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000040 /* TimelineModels.swift */; };
+		A10000000000000000000036 /* TimelineViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000041 /* TimelineViews.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -105,6 +107,8 @@
 		A20000000000000000000037 /* BackupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupManager.swift; sourceTree = "<group>"; };
 		A20000000000000000000038 /* DetailViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViews.swift; sourceTree = "<group>"; };
 		A20000000000000000000039 /* MetadataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataStore.swift; sourceTree = "<group>"; };
+		A20000000000000000000040 /* TimelineModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineModels.swift; sourceTree = "<group>"; };
+		A20000000000000000000041 /* TimelineViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineViews.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -203,6 +207,7 @@
 				A20000000000000000000005 /* AppIdentity.swift */,
 				A20000000000000000000006 /* DomainInterval.swift */,
 				A20000000000000000000027 /* AppLanguage.swift */,
+				A20000000000000000000040 /* TimelineModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -242,6 +247,7 @@
 				A20000000000000000000004 /* DayTraceViewModel.swift */,
 				A20000000000000000000033 /* MenuBarView.swift */,
 				A20000000000000000000034 /* HistoryView.swift */,
+				A20000000000000000000041 /* TimelineViews.swift */,
 				A20000000000000000000038 /* DetailViews.swift */,
 				A2000000000000000000000E /* DesignTokens.swift */,
 				A50000000000000000000015 /* Components */,
@@ -409,6 +415,8 @@
 				A10000000000000000000032 /* BackupManager.swift in Sources */,
 				A10000000000000000000033 /* DetailViews.swift in Sources */,
 				A10000000000000000000034 /* MetadataStore.swift in Sources */,
+				A10000000000000000000035 /* TimelineModels.swift in Sources */,
+				A10000000000000000000036 /* TimelineViews.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

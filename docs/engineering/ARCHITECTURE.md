@@ -51,6 +51,27 @@ The persisted daily records are:
 - `TypingAppDailyRecord`: local day key, app identity, and aggregate typing
   category counts.
 
+Timeline V2 is a separate detail layer and never replaces the daily records:
+
+- `AppUsageIntervalRecord`: stable interval ID, local `dateKey`, start/end,
+  duration, open-state recovery flag, and stable app identity/display name.
+- `WebsiteUsageIntervalRecord`: stable interval ID, local `dateKey`, start/end,
+  duration, open-state recovery flag, Chrome identity, sanitized domain, and
+  optional parent app interval ID.
+
+Only valid positive intervals are persisted. Intervals are split at local
+midnight and never cross a stored `dateKey`. One open interval per active
+stream is checkpointed in place; transitions close the current row and create
+a new row. On relaunch, stale open rows are closed at their last durable end
+rather than extended to launch time. Chrome child rows are written only inside
+Chrome app intervals. Unattributed Chrome time is derived at read time as
+non-negative gaps; no independent gap stream is persisted.
+
+The Timeline view queries only the selected local day and presents a value-type
+snapshot to SwiftUI. Existing aggregate records remain the source for
+Dashboard totals, History totals, menu bar totals, typing analytics, and
+website reconciliation.
+
 All durations are stored as `Double` seconds. Intervals crossing a local
 midnight are split into the relevant local calendar day keys. Website time is
 stored separately and never added to total app usage.
@@ -211,15 +232,26 @@ The current spike boundary intentionally has no:
 When the App is unavailable, the Native Messaging Host fails quickly and does
 not cache domain messages.
 
+The selected-day Timeline projection combines durable interval rows with the
+current in-memory continuation. If a checkpoint row and its live continuation
+share an ID, the projection keeps the newest durable end rather than showing a
+stale shorter row. Live rows are filtered by the selected local `dateKey`, so
+an interval crossing midnight cannot leak into the following day. The current
+model intentionally does not add Core Data index metadata: the pre-Timeline
+migration fixture must remain compatible, and selected-day fetches are already
+constrained by `dateKey`.
+
 ## Migration validation status
 
 The available development SQLite store was copied with its SQLite sidecars to
 a temporary test location and opened with an integrity check. It contained the
 current schema and zero aggregate rows, so it is not an old compatible store.
-No real legacy-store migration PASS is claimed; a future old-store copy must
-be validated before migration support is considered complete. Duplicate
-logical rows, when encountered during load/checkpoint, are normalized to the
-greatest existing aggregate rather than blindly summed.
+The automated genuine pre-Timeline fixture preserves App, Website, Typing, and
+Typing-App aggregate records and leaves both interval entities empty after
+migration. REAL OLD-STORE MIGRATION TEST NOT AVAILABLE: no prior
+production/legacy persistence dataset exists to migrate. Duplicate logical
+rows, when encountered during load/checkpoint, are normalized to the greatest
+existing aggregate rather than blindly summed.
 
 ## UI and localization
 

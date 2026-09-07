@@ -8,8 +8,9 @@
 **Internal Beta Sprint 2B Core Persistence: STABILIZED**
 **Sprint 3 Product Hardening: IMPLEMENTED — AUTOMATED REGRESSION PASSED**
 **F-008 Event Tap Lifecycle: IMPLEMENTED — REAL-MAC REGRESSION PASSED**
+**Timeline V2: IMPLEMENTED — 107 AUTOMATED TESTS PASSED; SIGNED MANUAL GATE PENDING**
 
-Next gate: **Independent re-review complete; timezone validation remains deferred**
+Next gate: **Timeline V2 validation and independent re-review**
 
 ---
 
@@ -95,9 +96,10 @@ Implemented in the current Insights & Control batch:
 - App/website detail surfaces, local search, pinned items, and optional App categories
 - current activity on the Dashboard
 - local privacy summary, data-location shortcut, and optional logical aggregate backups
+- Timeline V2 interval history for apps and sanitized Chrome website children
+- Timeline retention toggle, interval-only deletion, and versioned detailed export/backup
 
 Remaining Internal Beta work, intentionally deferred here:
-- event-level timeline persistence and detailed daily entity trend series
 - backup restore/import workflows
 - privacy zones, automatic category rules, cloud/accounts, and production distribution
 

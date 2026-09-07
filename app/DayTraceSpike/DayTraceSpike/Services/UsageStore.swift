@@ -246,6 +246,7 @@ final class UsageStore: ObservableObject {
     private var runtimeTypingByDay: [String: RuntimeTypingState] = [:]
     private var foregroundProgressByInterval: [String: TimeInterval] = [:]
     private var domainProgressByInterval: [String: TimeInterval] = [:]
+    private var timelineRuntime = TimelineRuntimeState()
 
     init(
         storeURL: URL? = nil,
@@ -286,8 +287,12 @@ final class UsageStore: ObservableObject {
             status = .failed(error.localizedDescription)
         }
 
+        recoverOpenTimelineRecords()
+
         loadBaseSnapshot(for: DayTraceDateKey.key(for: Date(), calendar: calendar))
     }
+
+    var isTimelineAvailable: Bool { status.isReady }
 
     func snapshot(at date: Date = Date()) -> DailyUsageSnapshot {
         let dayKey = DayTraceDateKey.key(for: date, calendar: calendar)
@@ -381,7 +386,122 @@ final class UsageStore: ObservableObject {
         return result
     }
 
-    func exportAggregatesJSON() -> Data? {
+    func timeline(for date: Date, now: Date = Date()) -> DailyTimelineSnapshot {
+        let dayKey = DayTraceDateKey.key(for: date, calendar: calendar)
+        guard status.isReady else { return .empty(for: date, calendar: calendar) }
+        let request = AppUsageIntervalRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "dateKey == %@", dayKey)
+        let appRecords = (try? context.fetch(request)) ?? []
+        let websiteRequest = WebsiteUsageIntervalRecord.fetchRequest()
+        websiteRequest.predicate = NSPredicate(format: "dateKey == %@", dayKey)
+        let websiteRecords = (try? context.fetch(websiteRequest)) ?? []
+
+        var apps = appRecords.compactMap { record -> TimelineAppInterval? in
+            guard let valid = TimelineIntervalNormalizer.validated(start: record.startAt, end: min(record.endAt, now)) else { return nil }
+            return TimelineAppInterval(
+                id: record.idString, dateKey: record.dateKey, start: valid.start, end: valid.end,
+                duration: valid.duration,
+                app: AppIdentity(bundleIdentifier: record.bundleIdentifier, displayName: record.displayName),
+                isOpen: record.isOpen && record.endAt >= now
+            )
+        }
+        var websites = websiteRecords.compactMap { record -> TimelineWebsiteInterval? in
+            guard let valid = TimelineIntervalNormalizer.validated(start: record.startAt, end: min(record.endAt, now)) else { return nil }
+            return TimelineWebsiteInterval(
+                id: record.idString, dateKey: record.dateKey, start: valid.start, end: valid.end,
+                duration: valid.duration, domain: record.domain,
+                browserBundleIdentifier: record.browserBundleIdentifier,
+                parentAppIntervalID: record.parentAppIntervalID,
+                isOpen: record.isOpen && record.endAt >= now
+            )
+        }
+
+        if dayKey == DayTraceDateKey.key(for: now, calendar: calendar) {
+            apps.append(contentsOf: liveAppTimelineIntervals(at: now, dateKey: dayKey))
+            websites.append(contentsOf: liveWebsiteTimelineIntervals(at: now, dateKey: dayKey))
+        }
+        apps = Array(Dictionary(grouping: apps, by: \.id).values.compactMap { records in
+            records.max { lhs, rhs in
+                if lhs.end != rhs.end { return lhs.end < rhs.end }
+                if lhs.isOpen != rhs.isOpen { return !lhs.isOpen && rhs.isOpen }
+                return lhs.start < rhs.start
+            }
+        })
+        websites = Array(Dictionary(grouping: websites, by: \.id).values.compactMap { records in
+            records.max { lhs, rhs in
+                if lhs.end != rhs.end { return lhs.end < rhs.end }
+                if lhs.isOpen != rhs.isOpen { return !lhs.isOpen && rhs.isOpen }
+                return lhs.start < rhs.start
+            }
+        })
+        apps = TimelineIntervalNormalizer.normalizeAppIntervals(apps)
+        websites = TimelineIntervalNormalizer.normalizeWebsiteIntervals(websites)
+        return DailyTimelineSnapshot(
+            date: date,
+            dateKey: dayKey,
+            appIntervals: apps,
+            websiteIntervals: websites,
+            chromeGaps: TimelineIntervalNormalizer.chromeGaps(appIntervals: apps, websiteIntervals: websites),
+            isRecorded: !apps.isEmpty || !websites.isEmpty
+        )
+    }
+
+    func appIntervals(for date: Date) -> [TimelineAppInterval] { timeline(for: date).appIntervals }
+    func websiteIntervals(for date: Date) -> [TimelineWebsiteInterval] { timeline(for: date).websiteIntervals }
+
+    func timelineStatistics(enabled: Bool) -> TimelineDataStatistics {
+        guard status.isReady else { return TimelineDataStatistics(enabled: enabled, startDate: nil, appIntervalCount: 0, websiteIntervalCount: 0, estimatedBytes: nil) }
+        let apps = (try? context.fetch(AppUsageIntervalRecord.fetchRequest())) ?? []
+        let websites = (try? context.fetch(WebsiteUsageIntervalRecord.fetchRequest())) ?? []
+        let startDate = (apps.map(\.startAt) + websites.map(\.startAt)).min()
+        return TimelineDataStatistics(
+            enabled: enabled, startDate: startDate,
+            appIntervalCount: apps.count, websiteIntervalCount: websites.count,
+            estimatedBytes: nil
+        )
+    }
+
+    @discardableResult
+    func deleteTimelineHistory(at date: Date = Date()) -> Bool {
+        guard status.isReady else { return false }
+        do {
+            for name in ["AppUsageIntervalRecord", "WebsiteUsageIntervalRecord"] {
+                let objects = try context.fetch(NSFetchRequest<NSManagedObject>(entityName: name))
+                objects.forEach(context.delete)
+            }
+            try saveContext()
+            timelineRuntime = TimelineRuntimeState(anchorDate: date)
+            revision += 1
+            return true
+        } catch {
+            context.rollback()
+            status = .degraded(error.localizedDescription)
+            return false
+        }
+    }
+
+    @discardableResult
+    func setTimelineEnabled(_ enabled: Bool, at date: Date = Date()) -> Bool {
+        guard status.isReady else { return false }
+        do {
+            if !enabled {
+                let apps = try context.fetch(AppUsageIntervalRecord.fetchRequest()).filter(\.isOpen)
+                apps.forEach { close($0, at: date) }
+                let websites = try context.fetch(WebsiteUsageIntervalRecord.fetchRequest()).filter(\.isOpen)
+                websites.forEach { close($0, at: date) }
+            }
+            try saveContext()
+            timelineRuntime = TimelineRuntimeState(anchorDate: enabled ? date : date)
+            revision += 1
+            return true
+        } catch {
+            context.rollback()
+            status = .degraded(error.localizedDescription)
+            return false
+        }
+    }
+
+    func exportAggregatesJSON(includeDetailedTimeline: Bool = false) -> Data? {
         guard status.isReady else { return nil }
         let appRequest = AppUsageDailyRecord.fetchRequest()
         let websiteRequest = WebsiteUsageDailyRecord.fetchRequest()
@@ -445,7 +565,7 @@ final class UsageStore: ObservableObject {
             }
         }
 
-        let object: [String: Any] = [
+        var object: [String: Any] = [
             "schemaVersion": 1,
             "exportedAt": ISO8601DateFormatter().string(from: Date()),
             "appUsage": sortedApps.map {
@@ -483,6 +603,19 @@ final class UsageStore: ObservableObject {
             }
         ]
 
+        if includeDetailedTimeline {
+            let intervalApps = (try? context.fetch(AppUsageIntervalRecord.fetchRequest())) ?? []
+            let intervalWebsites = (try? context.fetch(WebsiteUsageIntervalRecord.fetchRequest())) ?? []
+            object["detailedTimeline"] = [
+                "apps": intervalApps.sorted { $0.startAt < $1.startAt }.map {
+                    ["date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "bundleIdentifier": $0.bundleIdentifier, "displayName": $0.displayName]
+                },
+                "websites": intervalWebsites.sorted { $0.startAt < $1.startAt }.map {
+                    ["date": $0.dateKey, "start": ISO8601DateFormatter().string(from: $0.startAt), "end": ISO8601DateFormatter().string(from: $0.endAt), "durationSeconds": $0.durationSeconds, "browser": $0.browserBundleIdentifier, "domain": $0.domain]
+                }
+            ]
+        }
+
         return try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
     }
 
@@ -493,7 +626,9 @@ final class UsageStore: ObservableObject {
             "AppUsageDailyRecord",
             "WebsiteUsageDailyRecord",
             "TypingDailyRecord",
-            "TypingAppDailyRecord"
+            "TypingAppDailyRecord",
+            "AppUsageIntervalRecord",
+            "WebsiteUsageIntervalRecord"
         ]
 
         do {
@@ -514,6 +649,7 @@ final class UsageStore: ObservableObject {
             runtimeTypingByDay.removeAll()
             foregroundProgressByInterval.removeAll()
             domainProgressByInterval.removeAll()
+            timelineRuntime = TimelineRuntimeState(anchorDate: Date())
             lastCheckpointAt = nil
             revision += 1
             status = .ready
@@ -618,7 +754,9 @@ final class UsageStore: ObservableObject {
     func checkpoint(
         foregroundTracker: ForegroundTracker,
         domainTracker: DomainTracker,
-        at date: Date = Date()
+        at date: Date = Date(),
+        timelineEnabled: Bool = true,
+        finalizeTimeline: Bool = false
     ) -> Bool {
         var candidateForegroundProgress = foregroundProgressByInterval
         var candidateDomainProgress = domainProgressByInterval
@@ -636,7 +774,12 @@ final class UsageStore: ObservableObject {
         if persistRuntimeSnapshots(
             at: date,
             appDurations: candidateAppDurations,
-            domainDurations: candidateDomainDurations
+            domainDurations: candidateDomainDurations,
+            timelineState: timelineRuntime,
+            foregroundTracker: foregroundTracker,
+            domainTracker: domainTracker,
+            timelineEnabled: timelineEnabled,
+            finalizeTimeline: finalizeTimeline
         ) {
             // A persistence cursor is committed only after context.save()
             // succeeds. A failed save leaves the prior cursor and runtime
@@ -671,6 +814,85 @@ final class UsageStore: ObservableObject {
         return records.map(\.durationSeconds).max() ?? 0
     }
 
+    func seedAppIntervalForTesting(
+        id: String = UUID().uuidString,
+        app: AppIdentity,
+        start: Date,
+        end: Date,
+        isOpen: Bool = false
+    ) {
+        guard let valid = TimelineIntervalNormalizer.validated(start: start, end: end) else { return }
+        let record = fetchAppInterval(id: id) ?? AppUsageIntervalRecord(context: context)
+        record.idString = id; record.dateKey = DayTraceDateKey.key(for: start, calendar: calendar)
+        record.startAt = valid.start; record.endAt = valid.end; record.durationSeconds = valid.duration
+        record.isOpen = isOpen; record.bundleIdentifier = app.bundleIdentifier; record.displayName = app.displayName
+        try? context.save()
+    }
+
+    func seedWebsiteIntervalForTesting(
+        id: String = UUID().uuidString,
+        domain: String,
+        start: Date,
+        end: Date,
+        isOpen: Bool = false
+    ) {
+        guard let valid = TimelineIntervalNormalizer.validated(start: start, end: end) else { return }
+        let record = fetchWebsiteInterval(id: id) ?? WebsiteUsageIntervalRecord(context: context)
+        record.idString = id; record.dateKey = DayTraceDateKey.key(for: start, calendar: calendar)
+        record.startAt = valid.start; record.endAt = valid.end; record.durationSeconds = valid.duration
+        record.isOpen = isOpen; record.browserBundleIdentifier = "com.google.Chrome"; record.domain = domain
+        try? context.save()
+    }
+
+    private func fetchAppInterval(id: String) -> AppUsageIntervalRecord? {
+        let request = AppUsageIntervalRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "idString == %@", id)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first
+    }
+
+    private func fetchWebsiteInterval(id: String) -> WebsiteUsageIntervalRecord? {
+        let request = WebsiteUsageIntervalRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "idString == %@", id)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first
+    }
+
+    private func nearestChromeAppIntervalID(start: Date, end: Date) -> String? {
+        let request = AppUsageIntervalRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "bundleIdentifier == %@ AND startAt < %@ AND endAt > %@", "com.google.Chrome", end as NSDate, start as NSDate)
+        request.fetchLimit = 1
+        return try? context.fetch(request).first?.idString
+    }
+
+    private func close(_ record: AppUsageIntervalRecord, at date: Date) {
+        guard date > record.startAt else { record.isOpen = false; return }
+        record.endAt = min(date, record.endAt)
+        record.durationSeconds = max(0, record.endAt.timeIntervalSince(record.startAt))
+        record.isOpen = false
+    }
+
+    private func close(_ record: WebsiteUsageIntervalRecord, at date: Date) {
+        guard date > record.startAt else { record.isOpen = false; return }
+        record.endAt = min(date, record.endAt)
+        record.durationSeconds = max(0, record.endAt.timeIntervalSince(record.startAt))
+        record.isOpen = false
+    }
+
+    private func recoverOpenTimelineRecords() {
+        guard status.isReady else { return }
+        let apps = (try? context.fetch(AppUsageIntervalRecord.fetchRequest()))?.filter(\.isOpen) ?? []
+        let websites = (try? context.fetch(WebsiteUsageIntervalRecord.fetchRequest()))?.filter(\.isOpen) ?? []
+        guard !apps.isEmpty || !websites.isEmpty else { return }
+        apps.forEach { $0.isOpen = false }
+        websites.forEach { $0.isOpen = false }
+        do { try saveContext() } catch { context.rollback(); status = .degraded(error.localizedDescription) }
+    }
+
+    private func saveContext() throws {
+        if let saveHandler { try saveHandler(context) } else { try context.save() }
+    }
+
     private func accumulateRuntime(
         foregroundTracker: ForegroundTracker,
         domainTracker: DomainTracker,
@@ -695,11 +917,41 @@ final class UsageStore: ObservableObject {
         }
     }
 
+    private func liveAppTimelineIntervals(at date: Date, dateKey: String) -> [TimelineAppInterval] {
+        guard let app = timelineRuntime.activeApp,
+              app.bundleIdentifier != "com.apple.loginwindow",
+              let start = timelineRuntime.activeAppStart,
+              date > start else { return [] }
+        let segments = TimelineIntervalNormalizer.split(start: start, end: date, calendar: calendar)
+        return segments.filter { $0.dateKey == dateKey }.compactMap { segment in
+            let id = timelineRuntime.appSegmentIDs["active|\(app.bundleIdentifier)|\(start.timeIntervalSinceReferenceDate)|\(segment.dateKey)"] ?? ""
+            guard !id.isEmpty else { return nil }
+            return TimelineAppInterval(id: id, dateKey: segment.dateKey, start: segment.start, end: segment.end, duration: segment.duration, app: app, isOpen: segment.end == date)
+        }
+    }
+
+    private func liveWebsiteTimelineIntervals(at date: Date, dateKey: String) -> [TimelineWebsiteInterval] {
+        guard let domain = timelineRuntime.activeWebsiteDomain,
+              let start = timelineRuntime.activeWebsiteStart,
+              date > start else { return [] }
+        let segments = TimelineIntervalNormalizer.split(start: start, end: date, calendar: calendar)
+        return segments.filter { $0.dateKey == dateKey }.compactMap { segment in
+            let id = timelineRuntime.websiteSegmentIDs["active|\(domain)|\(start.timeIntervalSinceReferenceDate)|\(segment.dateKey)"] ?? ""
+            guard !id.isEmpty else { return nil }
+            return TimelineWebsiteInterval(id: id, dateKey: segment.dateKey, start: segment.start, end: segment.end, duration: segment.duration, domain: domain, browserBundleIdentifier: "com.google.Chrome", parentAppIntervalID: nil, isOpen: segment.end == date)
+        }
+    }
+
     @discardableResult
     private func persistRuntimeSnapshots(
         at date: Date,
         appDurations: [String: [AppIdentity: TimeInterval]]? = nil,
-        domainDurations: [String: [String: TimeInterval]]? = nil
+        domainDurations: [String: [String: TimeInterval]]? = nil,
+        timelineState: TimelineRuntimeState? = nil,
+        foregroundTracker: ForegroundTracker? = nil,
+        domainTracker: DomainTracker? = nil,
+        timelineEnabled: Bool = true,
+        finalizeTimeline: Bool = false
     ) -> Bool {
         let appDurations = appDurations ?? runtimeAppDurationsByDay
         let domainDurations = domainDurations ?? runtimeDomainDurationsByDay
@@ -724,25 +976,154 @@ final class UsageStore: ObservableObject {
             )
         }
 
+        let timelineStateForCommit = timelineState
+        var committedTimelineState: TimelineRuntimeState?
+        if let foregroundTracker, let domainTracker, var candidateTimelineState = timelineStateForCommit {
+            syncTimeline(
+                state: &candidateTimelineState,
+                foregroundTracker: foregroundTracker,
+                domainTracker: domainTracker,
+                at: date,
+                enabled: timelineEnabled,
+                finalize: finalizeTimeline
+            )
+            committedTimelineState = candidateTimelineState
+        }
+        normalizeDuplicateTimelineRecords()
+
         do {
-            if let saveHandler {
-                try saveHandler(context)
-            } else {
-                try context.save()
-            }
+            try saveContext()
+            if let committedTimelineState { self.timelineRuntime = committedTimelineState }
             status = .ready
             lastCheckpointAt = date
             revision += 1
             return true
         } catch {
             // Candidate maps and progress are local to the tracker checkpoint,
-            // so they are discarded here. Roll back only the failed Core Data
-            // transaction; the next checkpoint writes the same absolute
-            // aggregate again without duplication.
+            // so they are discarded here. Keep only the generated segment IDs:
+            // they identify the same logical interval on the next retry, while
+            // processed markers must remain uncommitted so the failed work is
+            // retried. Roll back only the failed Core Data transaction.
             context.rollback()
+            if let committedTimelineState {
+                for (key, id) in committedTimelineState.appSegmentIDs {
+                    timelineRuntime.appSegmentIDs[key] = id
+                }
+                for (key, id) in committedTimelineState.websiteSegmentIDs {
+                    timelineRuntime.websiteSegmentIDs[key] = id
+                }
+            }
             status = .degraded(error.localizedDescription)
             revision += 1
             return false
+        }
+    }
+
+    private func syncTimeline(
+        state: inout TimelineRuntimeState,
+        foregroundTracker: ForegroundTracker,
+        domainTracker: DomainTracker,
+        at date: Date,
+        enabled: Bool,
+        finalize: Bool
+    ) {
+        guard enabled else { return }
+        for interval in foregroundTracker.closedIntervals where !state.processedAppIntervalIDs.contains(interval.id.uuidString) {
+            guard interval.app.bundleIdentifier != "com.apple.loginwindow" else { continue }
+            let start = max(interval.start, state.anchorDate ?? interval.start)
+            let sourceKey = state.activeApp == interval.app && state.activeAppStart == start
+                ? "active|\(interval.app.bundleIdentifier)|\(start.timeIntervalSinceReferenceDate)"
+                : "closed|\(interval.id.uuidString)"
+            persistAppSegments(interval.app, start: start, end: interval.end, sourceKey: sourceKey, state: &state, isOpen: false)
+            state.processedAppIntervalIDs.insert(interval.id.uuidString)
+            if state.activeApp == interval.app { state.activeApp = nil; state.activeAppStart = nil }
+        }
+        if let active = foregroundTracker.currentApp,
+           active.bundleIdentifier != "com.apple.loginwindow",
+           let start = foregroundTracker.currentIntervalStart,
+           date > start {
+            let effectiveStart = max(start, state.anchorDate ?? start)
+            state.activeApp = active
+            state.activeAppStart = effectiveStart
+            persistAppSegments(active, start: effectiveStart, end: date, sourceKey: "active|\(active.bundleIdentifier)|\(effectiveStart.timeIntervalSinceReferenceDate)", state: &state, isOpen: !finalize)
+        }
+        if finalize { state.activeApp = nil; state.activeAppStart = nil }
+
+        for interval in domainTracker.domainIntervals where !state.processedWebsiteIntervalIDs.contains(interval.id.uuidString) {
+            let start = max(interval.start, state.anchorDate ?? interval.start)
+            let sourceKey = state.activeWebsiteDomain == interval.domain && state.activeWebsiteStart == start
+                ? "active|\(interval.domain)|\(start.timeIntervalSinceReferenceDate)"
+                : "closed|\(interval.id.uuidString)"
+            persistWebsiteSegments(domain: interval.domain, start: start, end: interval.end, sourceKey: sourceKey, state: &state, isOpen: false)
+            state.processedWebsiteIntervalIDs.insert(interval.id.uuidString)
+            if state.activeWebsiteDomain == interval.domain { state.activeWebsiteDomain = nil; state.activeWebsiteStart = nil }
+        }
+        if let domain = domainTracker.currentDomain == "—" ? nil : domainTracker.currentDomain,
+           let start = domainTracker.activeIntervalSnapshot(at: date)?.start,
+           date > start {
+            let effectiveStart = max(start, state.anchorDate ?? start)
+            state.activeWebsiteDomain = domain
+            state.activeWebsiteStart = effectiveStart
+            persistWebsiteSegments(domain: domain, start: effectiveStart, end: date, sourceKey: "active|\(domain)|\(effectiveStart.timeIntervalSinceReferenceDate)", state: &state, isOpen: !finalize)
+        }
+        if finalize { state.activeWebsiteDomain = nil; state.activeWebsiteStart = nil }
+    }
+
+    private func normalizeDuplicateTimelineRecords() {
+        let apps = (try? context.fetch(AppUsageIntervalRecord.fetchRequest())) ?? []
+        for records in Dictionary(grouping: apps, by: { "\($0.dateKey)|\($0.startAt.timeIntervalSinceReferenceDate)|\($0.endAt.timeIntervalSinceReferenceDate)|\($0.bundleIdentifier)" }).values where records.count > 1 {
+            let canonical = records.first(where: { !$0.objectID.isTemporaryID }) ?? records[0]
+            records.filter { $0 !== canonical }.forEach(context.delete)
+        }
+        let websites = (try? context.fetch(WebsiteUsageIntervalRecord.fetchRequest())) ?? []
+        for records in Dictionary(grouping: websites, by: { "\($0.dateKey)|\($0.startAt.timeIntervalSinceReferenceDate)|\($0.endAt.timeIntervalSinceReferenceDate)|\($0.domain)" }).values where records.count > 1 {
+            let canonical = records.first(where: { !$0.objectID.isTemporaryID }) ?? records[0]
+            records.filter { $0 !== canonical }.forEach(context.delete)
+        }
+    }
+
+    private func persistAppSegments(
+        _ app: AppIdentity,
+        start: Date,
+        end: Date,
+        sourceKey: String,
+        state: inout TimelineRuntimeState,
+        isOpen: Bool
+    ) {
+        for segment in TimelineIntervalNormalizer.split(start: start, end: end, calendar: calendar) {
+            let key = "\(sourceKey)|\(segment.dateKey)"
+            let id = state.appSegmentIDs[key] ?? UUID().uuidString
+            state.appSegmentIDs[key] = id
+            let record = fetchAppInterval(id: id) ?? AppUsageIntervalRecord(context: context)
+            record.idString = id; record.dateKey = segment.dateKey
+            record.startAt = segment.start; record.endAt = segment.end; record.durationSeconds = segment.duration
+            record.isOpen = isOpen && segment.end == end
+            record.bundleIdentifier = app.bundleIdentifier; record.displayName = app.displayName
+        }
+    }
+
+    private func persistWebsiteSegments(
+        domain: String,
+        start: Date,
+        end: Date,
+        sourceKey: String,
+        state: inout TimelineRuntimeState,
+        isOpen: Bool
+    ) {
+        guard domain != "—", !domain.isEmpty else { return }
+        for segment in TimelineIntervalNormalizer.split(start: start, end: end, calendar: calendar) {
+            let key = "\(sourceKey)|\(segment.dateKey)"
+            let id = state.websiteSegmentIDs[key] ?? UUID().uuidString
+            state.websiteSegmentIDs[key] = id
+            guard let parentID = nearestChromeAppIntervalID(start: segment.start, end: segment.end) else {
+                continue
+            }
+            let record = fetchWebsiteInterval(id: id) ?? WebsiteUsageIntervalRecord(context: context)
+            record.idString = id; record.dateKey = segment.dateKey
+            record.startAt = segment.start; record.endAt = segment.end; record.durationSeconds = segment.duration
+            record.isOpen = isOpen && segment.end == end
+            record.browserBundleIdentifier = "com.google.Chrome"; record.domain = domain
+            record.parentAppIntervalID = parentID
         }
     }
 
@@ -1136,7 +1517,23 @@ private struct RuntimeTypingState {
     var lastEventAt: Date?
 }
 
-private enum DayTraceDateKey {
+private struct TimelineRuntimeState {
+    var processedAppIntervalIDs: Set<String> = []
+    var processedWebsiteIntervalIDs: Set<String> = []
+    var appSegmentIDs: [String: String] = [:]
+    var websiteSegmentIDs: [String: String] = [:]
+    var activeApp: AppIdentity?
+    var activeAppStart: Date?
+    var activeWebsiteDomain: String?
+    var activeWebsiteStart: Date?
+    var anchorDate: Date?
+
+    init(anchorDate: Date? = nil) {
+        self.anchorDate = anchorDate
+    }
+}
+
+enum DayTraceDateKey {
     static func key(for date: Date, calendar: Calendar) -> String {
         let components = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", components.year ?? 0, components.month ?? 0, components.day ?? 0)
@@ -1167,7 +1564,7 @@ private enum DayTraceDateKey {
     }
 }
 
-private enum UsageStoreModel {
+enum UsageStoreModel {
     // Reuse one model instance for the process. Core Data associates managed
     // subclasses with their model; constructing a separate model for every
     // in-memory test store makes class lookup ambiguous and emits duplicate
@@ -1178,9 +1575,13 @@ private enum UsageStoreModel {
         shared
     }
 
-    private static func makeModel() -> NSManagedObjectModel {
+    static func makePreTimeline() -> NSManagedObjectModel {
+        makeModel(includeTimeline: false)
+    }
+
+    private static func makeModel(includeTimeline: Bool = true) -> NSManagedObjectModel {
         let model = NSManagedObjectModel()
-        model.entities = [
+        var entities = [
             entity(
                 name: "AppUsageDailyRecord",
                 managedClassName: "AppUsageDailyRecord",
@@ -1234,6 +1635,42 @@ private enum UsageStoreModel {
                 uniquenessConstraints: [["dateKey", "bundleIdentifier", "metricVersion"]]
             )
         ]
+        if includeTimeline {
+            entities += [
+            entity(
+                name: "AppUsageIntervalRecord",
+                managedClassName: "AppUsageIntervalRecord",
+                attributes: [
+                    attribute("idString", .stringAttributeType),
+                    attribute("dateKey", .stringAttributeType),
+                    attribute("startAt", .dateAttributeType),
+                    attribute("endAt", .dateAttributeType),
+                    attribute("durationSeconds", .doubleAttributeType),
+                    attribute("isOpen", .booleanAttributeType),
+                    attribute("bundleIdentifier", .stringAttributeType),
+                    attribute("displayName", .stringAttributeType)
+                ],
+                uniquenessConstraints: [["idString"]]
+            ),
+            entity(
+                name: "WebsiteUsageIntervalRecord",
+                managedClassName: "WebsiteUsageIntervalRecord",
+                attributes: [
+                    attribute("idString", .stringAttributeType),
+                    attribute("dateKey", .stringAttributeType),
+                    attribute("startAt", .dateAttributeType),
+                    attribute("endAt", .dateAttributeType),
+                    attribute("durationSeconds", .doubleAttributeType),
+                    attribute("isOpen", .booleanAttributeType),
+                    attribute("browserBundleIdentifier", .stringAttributeType),
+                    attribute("domain", .stringAttributeType),
+                    attribute("parentAppIntervalID", .stringAttributeType, optional: true)
+                ],
+                uniquenessConstraints: [["idString"]]
+            )
+            ]
+        }
+        model.entities = entities
         return model
     }
 
@@ -1254,12 +1691,13 @@ private enum UsageStoreModel {
     private static func attribute(
         _ name: String,
         _ type: NSAttributeType,
-        defaultValue: Any? = nil
+        defaultValue: Any? = nil,
+        optional: Bool = false
     ) -> NSAttributeDescription {
         let attribute = NSAttributeDescription()
         attribute.name = name
         attribute.attributeType = type
-        attribute.isOptional = false
+        attribute.isOptional = optional
         attribute.defaultValue = defaultValue
         return attribute
     }

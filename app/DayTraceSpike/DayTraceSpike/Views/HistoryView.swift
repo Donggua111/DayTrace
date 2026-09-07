@@ -7,16 +7,28 @@ struct HistoryView: View {
     @State private var selectedApp: AppIdentity?
     @State private var selectedWebsite: String?
     @State private var searchText = ""
+    @State private var timelineDate = Calendar.autoupdatingCurrent.startOfDay(for: Date())
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 5)) { context in
             let snapshot = model.history(for: selectedRange, at: context.date)
             let comparison = model.comparison(for: selectedRange, at: context.date)
             let heatmapSnapshot = model.history(for: .last30Days, at: context.date)
+            let timeline = model.timeline(for: timelineDate, now: context.date)
             ScrollView {
                 VStack(alignment: .leading, spacing: DayTraceDesign.spaceL) {
                     header(snapshot: snapshot)
                     summary(snapshot: snapshot)
+                    DailyTimelineView(
+                        snapshot: timeline,
+                        selectedDate: timelineDate,
+                        now: context.date,
+                        languageRawValue: languageRawValue,
+                        canGoNext: timelineDate < Calendar.autoupdatingCurrent.startOfDay(for: context.date),
+                        onPrevious: { timelineDate = Calendar.autoupdatingCurrent.date(byAdding: .day, value: -1, to: timelineDate) ?? timelineDate },
+                        onNext: { timelineDate = min(Calendar.autoupdatingCurrent.startOfDay(for: context.date), Calendar.autoupdatingCurrent.date(byAdding: .day, value: 1, to: timelineDate) ?? timelineDate) },
+                        onToday: { timelineDate = Calendar.autoupdatingCurrent.startOfDay(for: context.date) }
+                    )
                     comparisonSection(comparison: comparison)
                     heatmap(snapshot: heatmapSnapshot, asOf: context.date)
                     usageSection(snapshot: snapshot)

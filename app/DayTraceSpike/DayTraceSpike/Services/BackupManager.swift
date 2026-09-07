@@ -68,7 +68,7 @@ final class BackupManager: ObservableObject {
         lastError = nil
         let now = nowProvider()
         var destinationURL: URL?
-        guard store.status == .ready, let exported = store.exportAggregatesJSON() else {
+        guard store.status == .ready, let exported = store.exportAggregatesJSON(includeDetailedTimeline: true) else {
             lastError = "Unable to export aggregate data"
             return nil
         }
@@ -76,8 +76,8 @@ final class BackupManager: ObservableObject {
         do {
             try fileManager.createDirectory(at: backupDirectoryURL, withIntermediateDirectories: true)
             let envelope: [String: Any] = [
-                "backupVersion": 1,
-                "schemaVersion": 1,
+                "backupVersion": 2,
+                "schemaVersion": 2,
                 "createdAt": ISO8601DateFormatter().string(from: now),
                 "aggregates": try JSONSerialization.jsonObject(with: exported)
             ]
@@ -117,5 +117,11 @@ final class BackupManager: ObservableObject {
     static func isManagedBackupFilename(_ filename: String) -> Bool {
         let pattern = #"^DayTrace-[0-9]{8}-[0-9]{6}-[0-9]{3}-[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\.json$"#
         return filename.range(of: pattern, options: .regularExpression) != nil
+    }
+
+    static func detectBackupVersion(from data: Data) -> Int? {
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let version = object["backupVersion"] as? Int else { return nil }
+        return version
     }
 }

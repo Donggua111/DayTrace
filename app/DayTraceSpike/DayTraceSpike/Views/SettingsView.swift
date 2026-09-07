@@ -12,6 +12,8 @@ struct SettingsView: View {
     @State private var newCategory = ""
     @State private var renamingCategory: String?
     @State private var categoryDraft = ""
+    @State private var deleteTimelineConfirmationPresented = false
+    @State private var includeDetailedTimelineInExport = false
 
     var body: some View {
         Form {
@@ -131,6 +133,7 @@ struct SettingsView: View {
                     }
                 }
 
+                Toggle("settings.exportDetailedTimeline", isOn: $includeDetailedTimelineInExport)
                 Button("settings.exportData", action: exportData)
                 Button("settings.deleteData", role: .destructive) {
                     deleteConfirmationPresented = true
@@ -158,6 +161,30 @@ struct SettingsView: View {
                     .font(DayTraceDesign.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section("settings.timeline") {
+                Toggle("settings.timeline.enabled", isOn: Binding(
+                    get: { model.timelineEnabled },
+                    set: { _ = model.setTimelineEnabled($0) }
+                ))
+                Text("settings.timeline.note")
+                    .font(DayTraceDesign.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                let stats = model.timelineStatistics()
+                HStack {
+                    Text("settings.timeline.appIntervals")
+                    Spacer()
+                    Text(stats.appIntervalCount, format: .number).monospacedDigit()
+                }
+                HStack {
+                    Text("settings.timeline.websiteIntervals")
+                    Spacer()
+                    Text(stats.websiteIntervalCount, format: .number).monospacedDigit()
+                }
+                Button("settings.timeline.delete") { deleteTimelineConfirmationPresented = true }
+                    .foregroundStyle(.red)
             }
 
             Section("metadata.categories") {
@@ -259,6 +286,14 @@ struct SettingsView: View {
         } message: {
             Text("settings.deleteData.confirmMessage")
         }
+        .alert("settings.timeline.deleteTitle", isPresented: $deleteTimelineConfirmationPresented) {
+            Button("settings.deleteData.cancel", role: .cancel) {}
+            Button("settings.timeline.deleteConfirm", role: .destructive) {
+                actionMessage = model.deleteTimelineHistory() ? "settings.timeline.deleteSucceeded" : "settings.deleteFailed"
+            }
+        } message: {
+            Text("settings.timeline.deleteMessage")
+        }
     }
 
     private var eventTapText: Text {
@@ -338,7 +373,7 @@ struct SettingsView: View {
     }
 
     private func exportData() {
-        guard let data = model.exportAggregatesJSON() else {
+        guard let data = model.exportAggregatesJSON(includeDetailedTimeline: includeDetailedTimelineInExport) else {
             actionMessage = "settings.exportFailed"
             return
         }

@@ -499,3 +499,47 @@ Xcode Run with the stable bundle identifier `com.daytrace.spike`.
    deferred.
 8. In Settings → Privacy summary, confirm the stored/never-stored boundaries
    remain explicit in English and Simplified Chinese.
+
+## 7. Timeline V2 automated coverage
+
+The current XCTest suite contains 107 tests and covers:
+
+- positive/invalid interval validation and exact local-midnight splitting;
+- stable interval IDs across checkpoints, live projection reconciliation, and
+  aggregate/timeline separation;
+- derived Chrome gaps without an independent unattributed stream;
+- interval-only deletion preserving daily aggregates, with fresh intervals
+  continuing after deletion;
+- pause/resume, lock/sleep/wake/unlock, stale-open recovery, and retry after a
+  failed save without duplicate intervals;
+- synthetic daily-volume normalization with finite, non-negative output;
+- opt-in detailed export and version 2 backup detection;
+- a genuine pre-Timeline Core Data fixture retaining App, Website, Typing, and
+  Typing-App aggregate records while interval entities remain empty after
+  migration.
+
+## 8. Timeline V2 manual smoke test
+
+Pending real-Mac validation:
+
+1. Launch the signed DayTrace build with Detailed Timeline enabled.
+2. Use one app, switch to another, then return to the first. Confirm the
+   History → Timeline rows are chronological, non-overlapping, and durations
+   match the parent app usage without double counting.
+3. In Chrome, visit two ordinary HTTPS domains and then switch away from
+   Chrome. Confirm website children appear only under Chrome and the derived
+   unattributed gap never exceeds the Chrome parent interval.
+4. Lock, sleep, wake while still locked, unlock, and confirm no locked time or
+   `loginwindow` row appears.
+5. Quit and relaunch. Confirm the previous interval remains and the resumed
+   foreground interval starts as a new detail interval.
+6. Turn Detailed Timeline off and confirm new timeline rows stop while daily
+   totals continue. Turn it back on and confirm a fresh interval starts.
+7. Delete Detailed Timeline History and confirm only interval rows disappear;
+   daily app, website, and typing aggregates remain.
+
+These tests are not a substitute for the automated migration and privacy
+coverage. A real production/legacy store does not exist in this repository;
+the genuine pre-Timeline fixture is the available migration evidence, while a
+real old-store migration run is recorded as not available rather than
+fabricated.

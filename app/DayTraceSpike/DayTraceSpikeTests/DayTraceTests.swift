@@ -1120,17 +1120,48 @@ final class DayTraceTests: XCTestCase {
 
         tracker.handleSystemEventForTesting(.lock, at: start)
         tracker.handleSystemEventForTesting(.unlock, at: start.addingTimeInterval(10), frontmostApp: app)
-        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20)))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), timelineEnabled: true))
 
         tracker.handleSystemEventForTesting(.pause, at: start.addingTimeInterval(30))
         XCTAssertEqual(tracker.systemState.rawValue, TrackingSystemState.paused.rawValue)
         XCTAssertNil(tracker.currentApp)
-        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(300)))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(300), timelineEnabled: true))
         XCTAssertEqual(store.snapshot(at: start.addingTimeInterval(300)).appUsageByApp[app] ?? 0, 10, accuracy: 0.001)
+        XCTAssertEqual(store.timeline(for: start, now: start.addingTimeInterval(300)).appIntervals.map(\.duration).reduce(0, +), 20, accuracy: 0.001)
 
         tracker.handleSystemEventForTesting(.resume, at: start.addingTimeInterval(310), frontmostApp: app)
-        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(320)))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(320), timelineEnabled: true))
         XCTAssertEqual(store.snapshot(at: start.addingTimeInterval(320)).appUsageByApp[app] ?? 0, 20, accuracy: 0.001)
+        let resumedTimeline = store.timeline(for: start, now: start.addingTimeInterval(320)).appIntervals
+        XCTAssertEqual(resumedTimeline.count, 2)
+        XCTAssertEqual(resumedTimeline.map(\.duration).reduce(0, +), 30, accuracy: 0.001)
+    }
+
+    func testTimelineLockSleepWakeAndUnlockCreateOnlyValidIntervals() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let app = AppIdentity(bundleIdentifier: "com.example.timeline.lock", displayName: "Lock App")
+        let start = makeDate(day: 30, hour: 21, minute: 0, second: 0, calendar: calendar)
+
+        tracker.handleSystemEventForTesting(.lock, at: start)
+        tracker.handleSystemEventForTesting(.unlock, at: start.addingTimeInterval(10), frontmostApp: app)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), timelineEnabled: true))
+        tracker.handleSystemEventForTesting(.lock, at: start.addingTimeInterval(20))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), timelineEnabled: true))
+
+        tracker.handleSystemEventForTesting(.sleep, at: start.addingTimeInterval(30))
+        tracker.handleSystemEventForTesting(.wake, at: start.addingTimeInterval(40), frontmostApp: app)
+        XCTAssertNil(tracker.currentApp)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(50), timelineEnabled: true))
+
+        tracker.handleSystemEventForTesting(.unlock, at: start.addingTimeInterval(60), frontmostApp: app)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(70), timelineEnabled: true))
+        let intervals = store.timeline(for: start, now: start.addingTimeInterval(70)).appIntervals
+        XCTAssertEqual(intervals.count, 2)
+        XCTAssertEqual(intervals.map(\.duration).reduce(0, +), 20, accuracy: 0.001)
+        XCTAssertFalse(intervals.contains { $0.app.bundleIdentifier == "com.apple.loginwindow" })
     }
 
     private func makeKeyboardEvent(
@@ -1460,8 +1491,8 @@ final class DayTraceTests: XCTestCase {
         XCTAssertTrue(BackupManager.isManagedBackupFilename(first.lastPathComponent))
 
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: first)) as? [String: Any])
-        XCTAssertEqual(object["backupVersion"] as? Int, 1)
-        XCTAssertEqual(object["schemaVersion"] as? Int, 1)
+        XCTAssertEqual(object["backupVersion"] as? Int, 2)
+        XCTAssertEqual(object["schemaVersion"] as? Int, 2)
         XCTAssertNotNil(object["createdAt"] as? String)
         XCTAssertNotNil(object["aggregates"] as? [String: Any])
         let encoded = String(data: try Data(contentsOf: first), encoding: .utf8) ?? ""
@@ -1554,5 +1585,426 @@ final class DayTraceTests: XCTestCase {
         XCTAssertEqual(files.filter { BackupManager.isManagedBackupFilename($0.lastPathComponent) }.count, 5)
         XCTAssertTrue(FileManager.default.fileExists(atPath: unrelated.path))
         suite.removePersistentDomain(forName: suiteName)
+    }
+
+    func testTimelineNormalizerRejectsInvalidIntervalsAndPreservesExactDuration() {
+        XCTAssertNil(TimelineIntervalNormalizer.validated(start: Date(), end: Date()))
+        XCTAssertNil(TimelineIntervalNormalizer.validated(start: Date(), end: Date(timeIntervalSinceNow: -1)))
+        let start = Date(timeIntervalSinceReferenceDate: 1_000)
+        let end = start.addingTimeInterval(7.25)
+        XCTAssertEqual(try XCTUnwrap(TimelineIntervalNormalizer.validated(start: start, end: end)?.duration), 7.25, accuracy: 0.001)
+    }
+
+    func testTimelineNormalizerSplitsAtLocalMidnight() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let start = makeDate(day: 30, hour: 23, minute: 59, second: 58, calendar: calendar)
+        let end = makeDate(day: 31, hour: 0, minute: 0, second: 2, calendar: calendar)
+        let segments = TimelineIntervalNormalizer.split(start: start, end: end, calendar: calendar)
+        XCTAssertEqual(segments.count, 2)
+        XCTAssertEqual(segments.map(\.duration).reduce(0, +), 4, accuracy: 0.001)
+        guard let firstSegment = segments.first,
+              let secondSegment = segments.dropFirst().first else {
+            XCTFail("Expected two midnight-split timeline segments")
+            return
+        }
+        XCTAssertNotEqual(firstSegment.dateKey, secondSegment.dateKey)
+    }
+
+    func testTimelinePersistsAppIntervalsWithStableIDAcrossCheckpoints() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let app = AppIdentity(bundleIdentifier: "com.example.timeline", displayName: "Timeline App")
+        let start = makeDate(day: 30, hour: 9, minute: 0, second: 0, calendar: calendar)
+        tracker.appendClosedIntervalForTesting(ForegroundInterval(id: UUID(), app: app, start: start, end: start.addingTimeInterval(12), duration: 12))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(12), timelineEnabled: true))
+        let first = store.timeline(for: start, now: start.addingTimeInterval(12)).appIntervals
+        XCTAssertEqual(first.count, 1, "Expected one persisted app interval after the first checkpoint")
+        guard let firstInterval = first.first else {
+            XCTFail("Expected the first checkpoint to persist an app interval")
+            return
+        }
+        XCTAssertEqual(firstInterval.duration, 12, accuracy: 0.001)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), timelineEnabled: true))
+        let second = store.timeline(for: start, now: start.addingTimeInterval(20)).appIntervals
+        XCTAssertEqual(second.count, 1, "Expected the second checkpoint to reuse the existing app interval")
+        guard let secondInterval = second.first else {
+            XCTFail("Expected the second checkpoint to retain the app interval")
+            return
+        }
+        XCTAssertEqual(firstInterval.id, secondInterval.id)
+        XCTAssertEqual(firstInterval.start, secondInterval.start)
+        XCTAssertGreaterThanOrEqual(secondInterval.end, firstInterval.end)
+    }
+
+    func testTimelineAndAggregateRemainSeparateAndDeleteTimelinePreservesAggregate() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let app = AppIdentity(bundleIdentifier: "com.example.timeline.delete", displayName: "Delete Timeline")
+        let start = makeDate(day: 30, hour: 10, minute: 0, second: 0, calendar: calendar)
+        store.recordForegroundInterval(ForegroundInterval(id: UUID(), app: app, start: start, end: start.addingTimeInterval(8), duration: 8))
+        XCTAssertTrue(store.checkpoint(at: start.addingTimeInterval(8)))
+        store.seedAppIntervalForTesting(app: app, start: start, end: start.addingTimeInterval(8))
+        XCTAssertEqual(store.snapshot(at: start).appUsageByApp[app] ?? 0, 8, accuracy: 0.001)
+        XCTAssertEqual(store.timeline(for: start).appIntervals.count, 1)
+        XCTAssertTrue(store.deleteTimelineHistory())
+        XCTAssertTrue(store.timeline(for: start).appIntervals.isEmpty)
+        XCTAssertEqual(store.snapshot(at: start).appUsageByApp[app] ?? 0, 8, accuracy: 0.001)
+    }
+
+    func testTimelineDeleteDoesNotResurrectOldIntervalsAndAllowsFreshIntervals() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let app = AppIdentity(bundleIdentifier: "com.example.timeline.delete-boundary", displayName: "Delete Boundary")
+        let start = makeDate(day: 30, hour: 10, minute: 0, second: 0, calendar: calendar)
+
+        tracker.handleSystemEventForTesting(.lock, at: start)
+        tracker.handleSystemEventForTesting(.unlock, at: start, frontmostApp: app)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), timelineEnabled: true))
+        tracker.handleSystemEventForTesting(.lock, at: start.addingTimeInterval(10))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), timelineEnabled: true))
+        XCTAssertEqual(store.timeline(for: start).appIntervals.count, 1)
+
+        XCTAssertTrue(store.deleteTimelineHistory(at: start.addingTimeInterval(15)))
+        XCTAssertTrue(store.timeline(for: start, now: start.addingTimeInterval(15)).appIntervals.isEmpty)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(18), timelineEnabled: true))
+        XCTAssertTrue(store.timeline(for: start, now: start.addingTimeInterval(18)).appIntervals.isEmpty)
+
+        tracker.handleSystemEventForTesting(.unlock, at: start.addingTimeInterval(20), frontmostApp: app)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(30), timelineEnabled: true))
+        let fresh = store.timeline(for: start, now: start.addingTimeInterval(30)).appIntervals
+        XCTAssertEqual(fresh.count, 1)
+        guard let freshInterval = fresh.first else {
+            XCTFail("Expected a fresh interval after detailed timeline deletion")
+            return
+        }
+        XCTAssertEqual(freshInterval.start, start.addingTimeInterval(20))
+        XCTAssertEqual(freshInterval.duration, 10, accuracy: 0.001)
+    }
+
+    func testTimelineToggleStopsDetailAndStartsFreshIntervalWithoutStoppingAggregates() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let app = AppIdentity(bundleIdentifier: "com.example.timeline.toggle", displayName: "Toggle Timeline")
+        let start = makeDate(day: 30, hour: 10, minute: 0, second: 0, calendar: calendar)
+
+        tracker.handleSystemEventForTesting(.lock, at: start)
+        tracker.handleSystemEventForTesting(.unlock, at: start, frontmostApp: app)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), timelineEnabled: true))
+        XCTAssertTrue(store.setTimelineEnabled(false, at: start.addingTimeInterval(10)))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), timelineEnabled: false))
+        XCTAssertEqual(store.timeline(for: start, now: start.addingTimeInterval(20)).appIntervals.count, 1)
+
+        XCTAssertTrue(store.setTimelineEnabled(true, at: start.addingTimeInterval(20)))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(30), timelineEnabled: true))
+        let intervals = store.timeline(for: start, now: start.addingTimeInterval(30)).appIntervals
+        XCTAssertEqual(intervals.count, 2)
+        XCTAssertEqual(intervals.map(\.duration).reduce(0, +), 20, accuracy: 0.001)
+        XCTAssertTrue(intervals.contains { $0.start == start && $0.duration == 10 })
+        XCTAssertTrue(intervals.contains { $0.start == start.addingTimeInterval(20) && $0.duration == 10 })
+        XCTAssertEqual(store.snapshot(at: start.addingTimeInterval(30)).appUsageByApp[app] ?? 0, 30, accuracy: 0.001)
+    }
+
+    func testDeleteAllClearsTimelineIntervalsAlongsideAggregates() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let app = AppIdentity(bundleIdentifier: "com.example.timeline.delete-all", displayName: "Delete All Timeline")
+        let start = makeDate(day: 30, hour: 11, minute: 0, second: 0, calendar: calendar)
+        store.recordForegroundInterval(ForegroundInterval(id: UUID(), app: app, start: start, end: start.addingTimeInterval(12), duration: 12))
+        store.recordWebsiteInterval(DomainInterval(domain: "example.com", start: start, end: start.addingTimeInterval(6), duration: 6))
+        XCTAssertTrue(store.checkpoint(at: start.addingTimeInterval(12)))
+        store.seedAppIntervalForTesting(app: app, start: start, end: start.addingTimeInterval(12))
+        store.seedWebsiteIntervalForTesting(domain: "example.com", start: start, end: start.addingTimeInterval(6))
+        XCTAssertFalse(store.timeline(for: start).appIntervals.isEmpty)
+        XCTAssertFalse(store.timeline(for: start).websiteIntervals.isEmpty)
+
+        XCTAssertTrue(store.deleteAllData())
+        XCTAssertTrue(store.timeline(for: start).appIntervals.isEmpty)
+        XCTAssertTrue(store.timeline(for: start).websiteIntervals.isEmpty)
+        XCTAssertTrue(store.snapshot(at: start).appUsageByApp.isEmpty)
+        XCTAssertTrue(store.snapshot(at: start).websiteUsageByDomain.isEmpty)
+    }
+
+    func testChromeGapIsDerivedFromAppIntervalWithoutPersistingUnattributedStream() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let start = makeDate(day: 30, hour: 11, minute: 0, second: 0, calendar: calendar)
+        let chrome = AppIdentity(bundleIdentifier: "com.google.Chrome", displayName: "Google Chrome")
+        store.seedAppIntervalForTesting(app: chrome, start: start, end: start.addingTimeInterval(60))
+        store.seedWebsiteIntervalForTesting(domain: "chatgpt.com", start: start.addingTimeInterval(20), end: start.addingTimeInterval(40))
+        let snapshot = store.timeline(for: start, now: start.addingTimeInterval(60))
+        XCTAssertEqual(snapshot.websiteIntervals.count, 1)
+        XCTAssertEqual(snapshot.chromeGaps.map(\.duration).reduce(0, +), 40, accuracy: 0.001)
+    }
+
+    func testWebsiteIntervalsPersistOnlyWithChromeParent() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let chrome = AppIdentity(bundleIdentifier: "com.google.Chrome", displayName: "Google Chrome")
+        let start = makeDate(day: 30, hour: 13, minute: 0, second: 0, calendar: calendar)
+        tracker.appendClosedIntervalForTesting(ForegroundInterval(id: UUID(), app: chrome, start: start, end: start.addingTimeInterval(30), duration: 30))
+        var domainNow = start.addingTimeInterval(5)
+        let domains = DomainTracker(isChromeForeground: { true }, now: { domainNow })
+        domains.receive(domain: "chatgpt.com")
+        domainNow = start.addingTimeInterval(20)
+        domains.receive(domain: "github.com")
+        domainNow = start.addingTimeInterval(30)
+        XCTAssertEqual(domains.currentDomain, "github.com")
+        XCTAssertEqual(domains.domainIntervals.count, 1)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: domainNow, timelineEnabled: true))
+        let websites = store.timeline(for: start, now: domainNow).websiteIntervals
+        XCTAssertEqual(websites.map(\.domain), ["chatgpt.com", "github.com"])
+        XCTAssertTrue(websites.allSatisfy { $0.browserBundleIdentifier == "com.google.Chrome" && $0.parentAppIntervalID != nil })
+    }
+
+    func testTimelineSaveFailureRetriesWithoutDuplicateInterval() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        var shouldFail = true
+        var failedAppID: String?
+        var failedWebsiteID: String?
+        let store = UsageStore(
+            inMemory: true,
+            calendarProvider: { calendar },
+            saveHandler: { context in
+                if shouldFail {
+                    shouldFail = false
+                    failedAppID = try? context.fetch(AppUsageIntervalRecord.fetchRequest()).first?.idString
+                    failedWebsiteID = try? context.fetch(WebsiteUsageIntervalRecord.fetchRequest()).first?.idString
+                    throw NSError(domain: "DayTraceTests", code: 99)
+                }
+                try context.save()
+            }
+        )
+        let tracker = ForegroundTracker()
+        let app = AppIdentity(bundleIdentifier: "com.google.Chrome", displayName: "Retry Timeline")
+        let start = makeDate(day: 30, hour: 14, minute: 0, second: 0, calendar: calendar)
+        var domainNow = start.addingTimeInterval(3)
+        let domains = DomainTracker(isChromeForeground: { true }, now: { domainNow })
+        tracker.appendClosedIntervalForTesting(ForegroundInterval(id: UUID(), app: app, start: start, end: start.addingTimeInterval(9), duration: 9))
+        domains.receive(domain: "retry.example")
+        domainNow = start.addingTimeInterval(9)
+        XCTAssertFalse(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(9)))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(9)))
+        let timeline = store.timeline(for: start)
+        XCTAssertEqual(timeline.appIntervals.count, 1)
+        XCTAssertEqual(timeline.websiteIntervals.count, 1)
+        XCTAssertEqual(timeline.appIntervals.first?.id, failedAppID)
+        XCTAssertEqual(timeline.websiteIntervals.first?.id, failedWebsiteID)
+    }
+
+    func testRelaunchClosesStaleOpenTimelineAtDurableEnd() throws {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DayTrace-open-\(UUID().uuidString).sqlite")
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + "-shm"))
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + "-wal"))
+        }
+        let app = AppIdentity(bundleIdentifier: "com.example.timeline.open", displayName: "Open Timeline")
+        let start = makeDate(day: 30, hour: 15, minute: 0, second: 0, calendar: calendar)
+        do {
+            let first = UsageStore(storeURL: url, calendarProvider: { calendar })
+            XCTAssertTrue(first.status.isReady, "Expected the first persistent Timeline store to open")
+            first.seedAppIntervalForTesting(app: app, start: start, end: start.addingTimeInterval(6), isOpen: true)
+            first.seedWebsiteIntervalForTesting(domain: "chatgpt.com", start: start, end: start.addingTimeInterval(4), isOpen: true)
+        }
+        let second = UsageStore(storeURL: url, calendarProvider: { calendar })
+        XCTAssertTrue(second.status.isReady, "Expected the relaunched Timeline store to open")
+        let recovered = second.timeline(for: start).appIntervals
+        XCTAssertEqual(recovered.count, 1, "Expected one recovered app interval")
+        guard let recoveredInterval = recovered.first else {
+            XCTFail("Expected the stale open app interval to be recovered")
+            return
+        }
+        XCTAssertFalse(recoveredInterval.isOpen)
+        XCTAssertEqual(recoveredInterval.duration, 6, accuracy: 0.001)
+        let recoveredWebsite = second.timeline(for: start).websiteIntervals
+        XCTAssertEqual(recoveredWebsite.count, 1)
+        guard let recoveredWebsiteInterval = recoveredWebsite.first else {
+            XCTFail("Expected the stale open website interval to be recovered")
+            return
+        }
+        XCTAssertFalse(recoveredWebsiteInterval.isOpen)
+        XCTAssertEqual(recoveredWebsiteInterval.duration, 4, accuracy: 0.001)
+    }
+
+    func testTimelineLiveProjectionExtendsDurableIntervalWithoutDuplicate() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let app = AppIdentity(bundleIdentifier: "com.example.timeline.live", displayName: "Live Timeline")
+        let start = makeDate(day: 30, hour: 16, minute: 0, second: 0, calendar: calendar)
+
+        tracker.handleSystemEventForTesting(.lock, at: start)
+        tracker.handleSystemEventForTesting(.unlock, at: start, frontmostApp: app)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), timelineEnabled: true))
+        let projected = store.timeline(for: start, now: start.addingTimeInterval(18)).appIntervals
+        XCTAssertEqual(projected.count, 1)
+        guard let projectedInterval = projected.first else {
+            XCTFail("Expected the current interval to be projected")
+            return
+        }
+        XCTAssertEqual(projectedInterval.duration, 18, accuracy: 0.001)
+        XCTAssertTrue(projectedInterval.isOpen)
+    }
+
+    func testTimelineWriterSplitsAppAndWebsiteAtMidnight() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let chrome = AppIdentity(bundleIdentifier: "com.google.Chrome", displayName: "Google Chrome")
+        let start = makeDate(day: 30, hour: 23, minute: 59, second: 50, calendar: calendar)
+        let end = start.addingTimeInterval(30)
+        tracker.appendClosedIntervalForTesting(ForegroundInterval(id: UUID(), app: chrome, start: start, end: end, duration: 30))
+        var domainNow = start.addingTimeInterval(5)
+        let domains = DomainTracker(isChromeForeground: { true }, now: { domainNow })
+        domains.receive(domain: "chatgpt.com")
+        domainNow = end
+
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: end, timelineEnabled: true))
+        let dayA = store.timeline(for: start, now: end)
+        let dayB = store.timeline(for: end, now: end)
+        XCTAssertEqual(dayA.appIntervals.map(\.duration).reduce(0, +), 10, accuracy: 0.001)
+        XCTAssertEqual(dayB.appIntervals.map(\.duration).reduce(0, +), 20, accuracy: 0.001)
+        XCTAssertEqual(dayA.websiteIntervals.map(\.duration).reduce(0, +), 5, accuracy: 0.001)
+        XCTAssertEqual(dayB.websiteIntervals.map(\.duration).reduce(0, +), 20, accuracy: 0.001)
+    }
+
+    func testTimelineNormalizerHandlesSyntheticDailyVolume() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let start = makeDate(day: 30, hour: 1, minute: 0, second: 0, calendar: calendar)
+        let apps = (0..<500).map { index in
+            let intervalStart = start.addingTimeInterval(Double(index * 120))
+            return TimelineAppInterval(
+                id: "app-\(index)", dateKey: DayTraceDateKey.key(for: intervalStart, calendar: calendar),
+                start: intervalStart, end: intervalStart.addingTimeInterval(60), duration: 60,
+                app: AppIdentity(bundleIdentifier: "com.example.volume", displayName: "Volume App"), isOpen: false
+            )
+        }
+        let websites = (0..<500).map { index in
+            let intervalStart = start.addingTimeInterval(Double(index * 120))
+            return TimelineWebsiteInterval(
+                id: "website-\(index)", dateKey: DayTraceDateKey.key(for: intervalStart, calendar: calendar),
+                start: intervalStart, end: intervalStart.addingTimeInterval(60), duration: 60,
+                domain: "site\(index).example", browserBundleIdentifier: "com.google.Chrome",
+                parentAppIntervalID: nil, isOpen: false
+            )
+        }
+
+        let normalizedApps = TimelineIntervalNormalizer.normalizeAppIntervals(apps)
+        let normalizedWebsites = TimelineIntervalNormalizer.normalizeWebsiteIntervals(websites)
+        let gaps = TimelineIntervalNormalizer.chromeGaps(appIntervals: normalizedApps, websiteIntervals: normalizedWebsites)
+        XCTAssertEqual(normalizedApps.count, 500)
+        XCTAssertEqual(normalizedWebsites.count, 500)
+        XCTAssertTrue(gaps.allSatisfy { $0.duration >= 0 && $0.duration.isFinite })
+    }
+
+    func testDetailedTimelineExportIsOptInAndContainsNoContentFields() throws {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let app = AppIdentity(bundleIdentifier: "com.example.export.timeline", displayName: "Export Timeline")
+        let start = makeDate(day: 30, hour: 12, minute: 0, second: 0, calendar: calendar)
+        store.seedAppIntervalForTesting(app: app, start: start, end: start.addingTimeInterval(5))
+        let aggregate = try XCTUnwrap(store.exportAggregatesJSON())
+        XCTAssertFalse(String(decoding: aggregate, as: UTF8.self).contains("detailedTimeline"))
+        let detailed = try XCTUnwrap(store.exportAggregatesJSON(includeDetailedTimeline: true))
+        let text = String(decoding: detailed, as: UTF8.self)
+        XCTAssertTrue(text.contains("detailedTimeline"))
+        XCTAssertFalse(text.contains("keyCode")); XCTAssertFalse(text.contains("fullURL")); XCTAssertFalse(text.contains("content"))
+    }
+
+    func testBackupVersionTwoAndLegacyVersionDetection() throws {
+        let v1 = try JSONSerialization.data(withJSONObject: ["backupVersion": 1])
+        let v2 = try JSONSerialization.data(withJSONObject: ["backupVersion": 2])
+        XCTAssertEqual(BackupManager.detectBackupVersion(from: v1), 1)
+        XCTAssertEqual(BackupManager.detectBackupVersion(from: v2), 2)
+    }
+
+    func testPreTimelineAggregateStoreMigratesWithEmptyIntervalEntities() throws {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("DayTrace-legacy-\(UUID().uuidString).sqlite")
+        defer {
+            try? FileManager.default.removeItem(at: url)
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + "-shm"))
+            try? FileManager.default.removeItem(at: URL(fileURLWithPath: url.path + "-wal"))
+        }
+        let legacyModel = UsageStoreModel.makePreTimeline()
+        // Keep the fixture's model independent from the production managed
+        // subclasses so a full test run cannot leave Core Data class claims
+        // ambiguous for the current model.
+        legacyModel.entities.forEach { $0.managedObjectClassName = "NSManagedObject" }
+        do {
+            let legacy = NSPersistentContainer(name: "DayTraceLegacy", managedObjectModel: legacyModel)
+            let description = NSPersistentStoreDescription(url: url)
+            description.type = NSSQLiteStoreType
+            do {
+                try legacy.persistentStoreCoordinator.addPersistentStore(ofType: description.type, configurationName: nil, at: url, options: nil)
+            } catch {
+                XCTFail("Failed to create the legacy fixture store: \(error)")
+                return
+            }
+            let context = legacy.viewContext
+            guard let appEntity = legacyModel.entities.first(where: { $0.name == "AppUsageDailyRecord" }),
+                  let websiteEntity = legacyModel.entities.first(where: { $0.name == "WebsiteUsageDailyRecord" }),
+                  let typingEntity = legacyModel.entities.first(where: { $0.name == "TypingDailyRecord" }),
+                  let typingAppEntity = legacyModel.entities.first(where: { $0.name == "TypingAppDailyRecord" }) else {
+                XCTFail("Expected the pre-Timeline model to contain all four aggregate entities")
+                return
+            }
+            let appRecord = NSManagedObject(entity: appEntity, insertInto: context)
+            appRecord.setValue("2026-08-30", forKey: "dateKey")
+            appRecord.setValue("com.example.legacy", forKey: "bundleIdentifier")
+            appRecord.setValue("Legacy", forKey: "displayName")
+            appRecord.setValue(42.0, forKey: "durationSeconds")
+            let websiteRecord = NSManagedObject(entity: websiteEntity, insertInto: context)
+            websiteRecord.setValue("2026-08-30", forKey: "dateKey")
+            websiteRecord.setValue("com.google.Chrome", forKey: "browserBundleIdentifier")
+            websiteRecord.setValue("legacy.example", forKey: "domain")
+            websiteRecord.setValue(18.0, forKey: "durationSeconds")
+            let typingRecord = NSManagedObject(entity: typingEntity, insertInto: context)
+            typingRecord.setValue("2026-08-30", forKey: "dateKey")
+            typingRecord.setValue(7, forKey: "englishCharacters")
+            typingRecord.setValue(2, forKey: "numberCharacters")
+            typingRecord.setValue(1, forKey: "symbolCharacters")
+            typingRecord.setValue(3, forKey: "spaceCharacters")
+            typingRecord.setValue(2, forKey: "typingSessions")
+            typingRecord.setValue(12.5, forKey: "activeTypingDurationSeconds")
+            typingRecord.setValue(1, forKey: "metricVersion")
+            let typingAppRecord = NSManagedObject(entity: typingAppEntity, insertInto: context)
+            typingAppRecord.setValue("2026-08-30", forKey: "dateKey")
+            typingAppRecord.setValue("com.example.legacy", forKey: "bundleIdentifier")
+            typingAppRecord.setValue("Legacy", forKey: "displayName")
+            typingAppRecord.setValue(7, forKey: "englishCharacters")
+            typingAppRecord.setValue(2, forKey: "numberCharacters")
+            typingAppRecord.setValue(1, forKey: "symbolCharacters")
+            typingAppRecord.setValue(3, forKey: "spaceCharacters")
+            typingAppRecord.setValue(1, forKey: "metricVersion")
+            do {
+                try context.save()
+            } catch {
+                XCTFail("Failed to save the legacy fixture store: \(error)")
+                return
+            }
+        }
+        let utc = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(storeURL: url, calendarProvider: { utc })
+        XCTAssertTrue(store.status.isReady, "Migrated store status: \(store.status)")
+        let date = makeDate(day: 30, hour: 12, minute: 0, second: 0, calendar: fixedCalendar(timeZone: "UTC"))
+        XCTAssertEqual(store.snapshot(at: date).appUsageByApp.first?.value ?? 0, 42, accuracy: 0.001)
+        XCTAssertEqual(store.rawWebsiteDurationForTesting(at: date, domain: "legacy.example"), 18, accuracy: 0.001)
+        XCTAssertEqual(store.snapshot(at: date).typingMetrics.englishCharacters, 7)
+        XCTAssertEqual(store.snapshot(at: date).typingMetrics.numberCharacters, 2)
+        XCTAssertEqual(store.snapshot(at: date).typingMetrics.symbolCharacters, 1)
+        XCTAssertEqual(store.snapshot(at: date).typingMetrics.spaceCharacters, 3)
+        let legacyApp = AppIdentity(bundleIdentifier: "com.example.legacy", displayName: "Legacy")
+        XCTAssertEqual(store.snapshot(at: date).typingAppMetricsByApp[legacyApp]?.typedCharacters, 13)
+        XCTAssertTrue(store.timeline(for: date).appIntervals.isEmpty)
+        XCTAssertTrue(store.timeline(for: date).websiteIntervals.isEmpty)
     }
 }
