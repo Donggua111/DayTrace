@@ -594,3 +594,12 @@ exports intentionally omit activity history, domains, URLs, paths, and typed
 content. Exclude Tracking and identity-specific historical deletion remain
 future decisions because their runtime semantics require additional safety
 coverage.
+
+## Productionization V1 boundary
+
+Productionization V1 is installation and trust infrastructure, not a new
+tracking feature. The app remains local-first, preserves the current accounting
+semantics, and keeps the existing Native Messaging host for compatibility. A
+future Bundle ID cutover must preserve UserDefaults and activity history and
+may require one-time Input Monitoring reauthorization; DayTrace must never
+modify TCC data directly.

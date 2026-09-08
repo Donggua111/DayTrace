@@ -384,3 +384,22 @@ identity semantics have dedicated regression coverage.
 Diagnostic export is versioned and health-only by default: it contains build,
 permission, subsystem, persistence, detector, and record-count metadata, but
 no activity lists, URLs, domains, Timeline rows, paths, or typed content.
+
+## Productionization V1 decisions
+
+The final production Bundle ID is intentionally unresolved; the repository
+preserves `com.daytrace.spike` until an ownership-safe identifier is explicitly
+selected. The Native Messaging host remains `com.daytrace.spike` for protocol
+compatibility, and the canonical unpacked Chrome extension ID is
+`mmnoopahcchjobiajnhembdlipkhbjgo`.
+
+The Core Data store and backups use user Application Support paths that do not
+depend on the Bundle ID. `DayTracePreferencesMigration` copies only known
+DayTrace settings during a future identity cutover, is idempotent, preserves
+newer production values, and never deletes the old store. A kernel-held
+user-only runtime lock prevents multiple writers and Unix socket owners.
+
+Automation, Development, and Distribution artifacts are separate classes.
+Release tooling never embeds credentials, and missing Developer ID or Notary
+credentials leave distribution as pending rather than being reported as
+successful.

@@ -2060,11 +2060,9 @@ final class UsageStore: ObservableObject {
     }
 
     private static func defaultStoreURL() -> URL {
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
-        let directory = base.appendingPathComponent("DayTrace", isDirectory: true)
+        let directory = DayTraceStorageLocations.rootDirectory
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("DayTrace.sqlite")
+        return DayTraceStorageLocations.storeURL
     }
 }
 

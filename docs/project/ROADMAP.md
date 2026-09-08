@@ -8,7 +8,7 @@
 **Internal Beta Sprint 2B Core Persistence: STABILIZED**
 **Sprint 3 Product Hardening: IMPLEMENTED — AUTOMATED REGRESSION PASSED**
 **F-008 Event Tap Lifecycle: IMPLEMENTED — REAL-MAC REGRESSION PASSED**
-**Timeline V2: IMPLEMENTED — 127 AUTOMATED TESTS PASSED; SIGNED MANUAL GATE PENDING**
+**Timeline V2: IMPLEMENTED — 131 AUTOMATED TESTS PASSED; SIGNED MANUAL GATE PENDING**
 **Background Activity V1: IMPLEMENTED — AUTOMATED REGRESSION PASSED; REAL-APP DETECTOR GATE PENDING**
 
 Next gate: **Timeline V2 validation and independent re-review**
@@ -114,6 +114,25 @@ Remaining Internal Beta work, intentionally deferred here:
 - Exclude Tracking runtime semantics and entity-specific historical deletion
 - more background detectors; V1 is limited to the two inspected app identities
 - production identity, distribution, cloud/accounts, and merge import
+
+## Stage 2.5 — Productionization V1 foundation
+
+Implemented infrastructure:
+
+- centralized development/product identity map with production Bundle ID pending
+- known-key UserDefaults identity migration seam and migration tests
+- Bundle-ID-independent stable storage location abstraction
+- single-instance kernel lock for store/socket ownership
+- deliberate user-level Development install workflow
+- atomic Native Messaging executable and manifest updates
+- deterministic Release, DMG, notarization, and Gatekeeper tooling
+- artifact-class and rollback documentation
+
+Still pending before distribution:
+
+- explicit final production Bundle ID
+- available Apple Development / Developer ID credentials as applicable
+- real signed Mac acceptance matrix and Chrome runtime validation
 
 ---
 

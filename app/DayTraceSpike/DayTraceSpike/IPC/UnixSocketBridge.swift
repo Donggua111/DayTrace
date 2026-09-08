@@ -9,7 +9,7 @@ final class UnixSocketBridge: ObservableObject {
     private let queue = DispatchQueue(label: "com.daytrace.spike.unix-socket", qos: .utility)
     private let messageHandler: (String) -> Void
     private var serverSocket: Int32 = -1
-    private var socketPath: String { FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/DayTrace/Spike/daytrace.sock").path }
+    private var socketPath: String { DayTraceStorageLocations.socketURL.path }
 
     init(messageHandler: @escaping (String) -> Void) {
         self.messageHandler = messageHandler

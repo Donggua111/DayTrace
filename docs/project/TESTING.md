@@ -539,7 +539,7 @@ Xcode Run with the stable bundle identifier `com.daytrace.spike`.
 
 ## 7. Timeline V2 automated coverage
 
-The current XCTest suite contains 127 tests and covers:
+The current XCTest suite contains 131 tests and covers:
 
 - positive/invalid interval validation and exact local-midnight splitting;
 - stable interval IDs across checkpoints, live projection reconciliation, and
@@ -615,4 +615,14 @@ The additional tests cover:
 Manual GUI validation remains pending for signed Input Monitoring/TCC, real
 Chrome discovery, menu bar refresh, Timeline visual behavior, restore Finder
 picker, VoiceOver, timezone changes, and real detector behavior. These pending
-checks do not replace the 127-test automated gate.
+checks do not replace the 131-test automated gate.
+
+## Productionization V1 checks
+
+Run `zsh -n` on all repository shell scripts and execute
+`scripts/spike/test-native-host-config.sh`. For local release tooling, use
+`scripts/release/build-release.sh --allow-unsigned` only to validate the
+automation artifact path; that artifact is **NOT FOR DISTRIBUTION**. A signed
+Development build is required for Input Monitoring and real-Mac lifecycle
+validation. Notarization is pending until an existing `notarytool` Keychain
+profile is available.

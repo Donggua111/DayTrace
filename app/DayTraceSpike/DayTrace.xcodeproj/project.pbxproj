@@ -55,6 +55,10 @@
 		A10000000000000000000039 /* BackgroundActivityCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000044 /* BackgroundActivityCoordinator.swift */; };
 		A1000000000000000000003A /* BackgroundActivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000045 /* BackgroundActivityViews.swift */; };
 		A1000000000000000000003B /* CoreAudio.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A20000000000000000000046 /* CoreAudio.framework */; };
+		A1000000000000000000003C /* DayTraceIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000047 /* DayTraceIdentity.swift */; };
+		A1000000000000000000003D /* DayTraceStorageLocations.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000048 /* DayTraceStorageLocations.swift */; };
+		A1000000000000000000003E /* DayTracePreferencesMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000049 /* DayTracePreferencesMigration.swift */; };
+		A1000000000000000000003F /* DayTraceSingleInstanceGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000004A /* DayTraceSingleInstanceGuard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -119,6 +123,10 @@
 		A20000000000000000000043 /* BackgroundActivityDetectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundActivityDetectors.swift; sourceTree = "<group>"; };
 		A20000000000000000000044 /* BackgroundActivityCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundActivityCoordinator.swift; sourceTree = "<group>"; };
 		A20000000000000000000045 /* BackgroundActivityViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundActivityViews.swift; sourceTree = "<group>"; };
+		A20000000000000000000047 /* DayTraceIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTraceIdentity.swift; sourceTree = "<group>"; };
+		A20000000000000000000048 /* DayTraceStorageLocations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTraceStorageLocations.swift; sourceTree = "<group>"; };
+		A20000000000000000000049 /* DayTracePreferencesMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTracePreferencesMigration.swift; sourceTree = "<group>"; };
+		A2000000000000000000004A /* DayTraceSingleInstanceGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayTraceSingleInstanceGuard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -241,6 +249,10 @@
 				A20000000000000000000039 /* MetadataStore.swift */,
 				A20000000000000000000043 /* BackgroundActivityDetectors.swift */,
 				A20000000000000000000044 /* BackgroundActivityCoordinator.swift */,
+				A20000000000000000000047 /* DayTraceIdentity.swift */,
+				A20000000000000000000048 /* DayTraceStorageLocations.swift */,
+				A20000000000000000000049 /* DayTracePreferencesMigration.swift */,
+				A2000000000000000000004A /* DayTraceSingleInstanceGuard.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -437,6 +449,10 @@
 				A10000000000000000000038 /* BackgroundActivityDetectors.swift in Sources */,
 				A10000000000000000000039 /* BackgroundActivityCoordinator.swift in Sources */,
 				A1000000000000000000003A /* BackgroundActivityViews.swift in Sources */,
+				A1000000000000000000003C /* DayTraceIdentity.swift in Sources */,
+				A1000000000000000000003D /* DayTraceStorageLocations.swift in Sources */,
+				A1000000000000000000003E /* DayTracePreferencesMigration.swift in Sources */,
+				A1000000000000000000003F /* DayTraceSingleInstanceGuard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -494,6 +510,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 0.9.0;
 				DEVELOPMENT_TEAM = S8D63V4T8H;
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -516,7 +533,9 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 0.9.0;
 				DEVELOPMENT_TEAM = S8D63V4T8H;
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				INFOPLIST_KEY_CFBundleDisplayName = DayTrace;
@@ -533,6 +552,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 0.9.0;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
 				PRODUCT_NAME = DayTraceNativeHost;
 				SWIFT_VERSION = 5.0;
@@ -543,7 +564,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGNING_REQUIRED = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 0.9.0;
 				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				ENABLE_HARDENED_RUNTIME = YES;
 				PRODUCT_NAME = DayTraceNativeHost;
 				SWIFT_VERSION = 5.0;
 			};

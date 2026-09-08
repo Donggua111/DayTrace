@@ -138,3 +138,18 @@ xcodebuild -project app/DayTraceSpike/DayTrace.xcodeproj \
 Manual Input Monitoring verification must use an Apple Development-signed
 Xcode Run build. An unsigned automation artifact is not a valid permission
 runtime.
+
+## Productionization V1 foundation
+
+Production tooling now distinguishes unsigned automation builds, Apple
+Development installed builds, and Developer ID distribution builds. The
+current development Bundle ID remains `com.daytrace.spike` because no
+ownership-safe final production identifier has been selected. The user-level
+Core Data and backup locations are Bundle-ID independent, and a future identity
+cutover has a known-key UserDefaults migration seam that preserves existing
+production values and keeps the old store.
+
+Use `scripts/install-development.sh` for a deliberate stable user-level app
+install, and `scripts/release/` for Release, DMG, notarization, and Gatekeeper
+tooling. See [PRODUCTIONIZATION.md](docs/release/PRODUCTIONIZATION.md) and the
+[release checklist](docs/release/RELEASE_CHECKLIST.md).

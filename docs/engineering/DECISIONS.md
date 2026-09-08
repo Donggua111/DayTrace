@@ -75,3 +75,20 @@ Integrity checks are manual and privacy-safe. Only deterministic stale-open
 interval repair is automatic; aggregate values are never guessed or rewritten.
 Diagnostics export health metadata only. Exact Category Rules and Hide Identity
 are presentation metadata, distinct from the deferred Exclude Tracking mode.
+
+## Productionization V1: identity and installation
+
+Status: implemented as local infrastructure; final production identity pending
+
+- Keep the development Bundle ID `com.daytrace.spike` until an explicit
+  ownership-safe production Bundle ID is selected.
+- Keep the Native Messaging host name `com.daytrace.spike` for compatibility.
+- Treat `mmnoopahcchjobiajnhembdlipkhbjgo` as the canonical current unpacked
+  Chrome extension ID.
+- Keep activity data and backups in Bundle-ID-independent Application Support
+  locations.
+- Migrate only known UserDefaults keys on a future identity cutover, preserving
+  production precedence and the legacy store.
+- Keep unsigned automation, signed Development, and Developer ID Distribution
+  artifacts distinct.
+- Never modify TCC databases or store Apple credentials in source.

@@ -255,10 +255,13 @@ final class DayTraceViewModel: ObservableObject {
         let background = usageStore.backgroundDataStatistics()
         let report: [String: Any] = [
             "diagnosticReportVersion": 1,
-            "dayTraceVersion": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development",
+            "dayTraceVersion": DayTraceIdentity.versionInfo.marketing,
+            "build": DayTraceIdentity.versionInfo.build,
             "macOS": ProcessInfo.processInfo.operatingSystemVersionString,
             "architecture": "arm64",
-            "bundleIdentifier": Bundle.main.bundleIdentifier ?? "com.daytrace.spike",
+            "bundleIdentifier": DayTraceIdentity.activeBundleIdentifier,
+            "installationKind": DayTraceIdentity.installationKind(for: Bundle.main.bundleURL).rawValue,
+            "identityMigrationVersion": DayTraceIdentity.identityMigrationVersion,
             "inputMonitoring": [
                 "status": typingCounter.permissionStatus.rawValue,
                 "cgPreflight": typingCounter.cgPreflightListenAccess,
@@ -270,7 +273,9 @@ final class DayTraceViewModel: ObservableObject {
             ],
             "chrome": [
                 "ipcStatus": socketBridge.status.rawValue,
-                "nativeHost": "com.daytrace.spike"
+                "nativeHost": DayTraceIdentity.nativeMessagingHostName,
+                "canonicalExtensionID": DayTraceIdentity.chromeExtensionIdentifier,
+                "hostInstallation": "userApplicationSupport"
             ],
             "persistence": [
                 "status": String(describing: usageStore.status),

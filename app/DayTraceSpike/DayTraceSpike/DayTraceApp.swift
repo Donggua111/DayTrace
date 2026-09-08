@@ -7,15 +7,27 @@ struct DayTraceApp: App {
 
     var body: some Scene {
         WindowGroup("DayTrace", id: "dashboard") {
-            ZStack {
-                ContentView(model: appDelegate.model, languageRawValue: $languageRawValue)
-                DashboardWindowBridge(controller: appDelegate.dashboardWindowController)
+            Group {
+                if appDelegate.isPrimaryInstance {
+                    ZStack {
+                        ContentView(model: appDelegate.model, languageRawValue: $languageRawValue)
+                        DashboardWindowBridge(controller: appDelegate.dashboardWindowController)
+                    }
+                } else {
+                    Color.clear
+                }
             }
                 .environment(\.locale, selectedLanguage.locale)
         }
 
         Settings {
-            SettingsView(model: appDelegate.model, languageRawValue: $languageRawValue)
+            Group {
+                if appDelegate.isPrimaryInstance {
+                    SettingsView(model: appDelegate.model, languageRawValue: $languageRawValue)
+                } else {
+                    Color.clear
+                }
+            }
                 .environment(\.locale, selectedLanguage.locale)
         }
     }

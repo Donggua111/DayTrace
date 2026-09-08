@@ -4,4 +4,6 @@
 **/build/
 **/.build/
 *.xcresult
+/release/
+/dist/
 .DS_Store

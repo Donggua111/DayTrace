@@ -2,21 +2,28 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let model: DayTraceViewModel
-    let dashboardWindowController: DashboardWindowController
-    private let menuBarStatusItemController: MenuBarStatusItemController
+    let isPrimaryInstance: Bool
+    lazy var model = DayTraceViewModel()
+    lazy var dashboardWindowController = DashboardWindowController()
+    private lazy var menuBarStatusItemController = MenuBarStatusItemController(
+        model: model,
+        dashboardWindowController: dashboardWindowController
+    )
+    private let instanceGuard: DayTraceSingleInstanceGuard
 
     override init() {
-        model = DayTraceViewModel()
-        dashboardWindowController = DashboardWindowController()
-        menuBarStatusItemController = MenuBarStatusItemController(
-            model: model,
-            dashboardWindowController: dashboardWindowController
-        )
+        DayTracePreferencesMigration.migrateIfNeeded()
+        let instanceGuard = DayTraceSingleInstanceGuard()
+        self.instanceGuard = instanceGuard
+        self.isPrimaryInstance = instanceGuard.acquire()
         super.init()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        guard isPrimaryInstance else {
+            NSApp.terminate(nil)
+            return
+        }
         menuBarStatusItemController.install()
     }
 

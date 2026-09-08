@@ -2405,6 +2405,84 @@ final class DayTraceTests: XCTestCase {
         XCTAssertEqual(intervals.first?.id, failedID)
         XCTAssertEqual(intervals.first?.duration ?? 0, 10, accuracy: 0.001)
     }
+
+    func testDayTraceIdentityMapAndVersionResolution() {
+        XCTAssertEqual(DayTraceIdentity.productName, "DayTrace")
+        XCTAssertEqual(DayTraceIdentity.developmentBundleIdentifier, "com.daytrace.spike")
+        XCTAssertNil(DayTraceIdentity.productionBundleIdentifier)
+        XCTAssertEqual(DayTraceIdentity.nativeMessagingHostName, "com.daytrace.spike")
+        XCTAssertEqual(DayTraceIdentity.chromeExtensionIdentifier, "mmnoopahcchjobiajnhembdlipkhbjgo")
+
+        let version = DayTraceIdentity.versionInfo(from: [
+            "CFBundleShortVersionString": "0.9.0",
+            "CFBundleVersion": "1"
+        ])
+        XCTAssertEqual(version.marketing, "0.9.0")
+        XCTAssertEqual(version.build, "1")
+    }
+
+    func testDayTraceInstallationPathClassification() {
+        let home = URL(fileURLWithPath: "/Users/example", isDirectory: true)
+        XCTAssertEqual(
+            DayTraceIdentity.installationKind(
+                for: URL(fileURLWithPath: "/Users/example/Applications/DayTrace.app"),
+                homeDirectory: home
+            ),
+            .userApplications
+        )
+        XCTAssertEqual(
+            DayTraceIdentity.installationKind(
+                for: URL(fileURLWithPath: "/private/tmp/DayTrace.app"),
+                homeDirectory: home
+            ),
+            .temporary
+        )
+        XCTAssertEqual(
+            DayTraceIdentity.installationKind(
+                for: URL(fileURLWithPath: "/Users/example/Library/Developer/Xcode/DerivedData/DayTrace.app"),
+                homeDirectory: home
+            ),
+            .xcodeDerivedData
+        )
+    }
+
+    func testPreferencesMigrationCopiesKnownKeysWithoutOverwritingProductionValues() {
+        let targetIdentifier = "com.daytrace.production.test.\(UUID().uuidString)"
+        let targetDefaults = UserDefaults(suiteName: targetIdentifier)!
+        defer { targetDefaults.removePersistentDomain(forName: targetIdentifier) }
+        targetDefaults.setPersistentDomain([
+            AppLanguage.storageKey: AppLanguage.english.rawValue
+        ], forName: targetIdentifier)
+
+        let outcome = DayTracePreferencesMigration.migrateIfNeeded(
+            targetBundleIdentifier: targetIdentifier,
+            targetDefaults: targetDefaults,
+            legacyDomain: [
+                AppLanguage.storageKey: AppLanguage.zhHans.rawValue,
+                MenuBarDisplayMode.storageKey: MenuBarDisplayMode.typing.rawValue,
+                "daytrace.unrelated": "must-not-copy"
+            ]
+        )
+
+        XCTAssertTrue(outcome.migrated)
+        XCTAssertEqual(outcome.copiedKeys, [MenuBarDisplayMode.storageKey])
+        XCTAssertEqual(targetDefaults.string(forKey: AppLanguage.storageKey), AppLanguage.english.rawValue)
+        XCTAssertEqual(targetDefaults.string(forKey: MenuBarDisplayMode.storageKey), MenuBarDisplayMode.typing.rawValue)
+        XCTAssertNil(targetDefaults.string(forKey: "daytrace.unrelated"))
+        XCTAssertEqual(targetDefaults.integer(forKey: DayTracePreferencesMigration.markerKey), 1)
+    }
+
+    func testSingleInstanceGuardAllowsOnlyOneOwner() {
+        let runtimeDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DayTraceSingleInstance-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: runtimeDirectory) }
+
+        let first = DayTraceSingleInstanceGuard(runtimeDirectory: runtimeDirectory)
+        let second = DayTraceSingleInstanceGuard(runtimeDirectory: runtimeDirectory)
+
+        XCTAssertTrue(first.acquire())
+        XCTAssertFalse(second.acquire())
+    }
 }
 
 private final class BackgroundTestProcessLookup: BackgroundProcessLookup {
