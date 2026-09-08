@@ -116,6 +116,7 @@ final class TypingCounter: ObservableObject {
     private let appProvider: () -> AppIdentity?
     private var lastValidTypingEventTime: Date?
     private var acceptsEvents = true
+    private var trackingEnabled = true
 
     // Temporary compatibility properties for the pre-Task 2 Dashboard.
     // They are computed from the new aggregate source of truth.
@@ -365,6 +366,16 @@ final class TypingCounter: ObservableObject {
         lastTypingEventAt = nil
     }
 
+    /// Keeps aggregate typing aligned with the app-wide tracking switch.
+    /// Pausing starts a fresh typing session when tracking resumes, so paused
+    /// time cannot contribute to active duration or session continuity.
+    func setTrackingEnabled(_ enabled: Bool) {
+        trackingEnabled = enabled
+        if !enabled {
+            lastValidTypingEventTime = nil
+        }
+    }
+
     private func handle(event: CGEvent) {
         let category = KeyboardEventClassifier.classify(event: event)
         guard category != .ignored else { return }
@@ -376,7 +387,7 @@ final class TypingCounter: ObservableObject {
     }
 
     func record(category: TypingCategory, app: AppIdentity?, at date: Date) {
-        guard acceptsEvents, category != .ignored else { return }
+        guard acceptsEvents, trackingEnabled, category != .ignored else { return }
 
         metrics.record(category)
         if let app {

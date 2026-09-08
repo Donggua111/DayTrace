@@ -50,7 +50,12 @@ final class DayTraceViewModel: ObservableObject {
             }
         })
         socket.onStatusChanged = { status in
-            guard status == .waiting || status == .notConfigured || status == .error else { return }
+            // A native-messaging client is short-lived: Chrome connects for
+            // one domain message, then closes the stdio/socket hop. `waiting`
+            // is therefore the normal idle state, not loss of attribution.
+            // Only an unavailable configuration or socket error invalidates
+            // the cached domain.
+            guard status == .notConfigured || status == .error else { return }
             domains.connectionDidClose()
         }
         socketBridge = socket
@@ -75,6 +80,12 @@ final class DayTraceViewModel: ObservableObject {
         typingCounter.onAggregateRecorded = { category, app, date in
             store.recordTyping(category: category, app: app, at: date)
         }
+        tracker.$isTracking
+            .removeDuplicates()
+            .sink { [weak self] isTracking in
+                self?.typingCounter.setTrackingEnabled(isTracking)
+            }
+            .store(in: &cancellables)
             [tracker.objectWillChange, typingCounter.objectWillChange, domains.objectWillChange, backgroundActivity.objectWillChange, socket.objectWillChange, store.objectWillChange, launchAtLogin.objectWillChange, metadataStore.objectWillChange]
             .forEach { publisher in
                 publisher.sink { [weak self] _ in

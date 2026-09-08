@@ -235,6 +235,25 @@ final class DayTraceTests: XCTestCase {
         XCTAssertEqual(counter.mostTypedInApp, appB)
     }
 
+    func testTypingCounterStopsDuringPausedTrackingAndStartsFreshSessionOnResume() {
+        let counter = TypingCounter(appProvider: { nil })
+        let start = Date(timeIntervalSinceReferenceDate: 150)
+
+        counter.record(category: .english, app: nil, at: start)
+        counter.setTrackingEnabled(false)
+        counter.record(category: .number, app: nil, at: start.addingTimeInterval(30))
+
+        XCTAssertEqual(counter.metrics.typedCharacters, 1)
+        XCTAssertEqual(counter.activeTypingDuration, 0, accuracy: 0.001)
+
+        counter.setTrackingEnabled(true)
+        counter.record(category: .symbol, app: nil, at: start.addingTimeInterval(60))
+
+        XCTAssertEqual(counter.metrics.typedCharacters, 2)
+        XCTAssertEqual(counter.typingSessions, 1)
+        XCTAssertEqual(counter.activeTypingDuration, 0, accuracy: 0.001)
+    }
+
     func testEstimatedEnglishWordsUsesOnlyEnglishAggregate() {
         var metrics = TypingMetrics()
         for _ in 0..<100 {
