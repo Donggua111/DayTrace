@@ -15,7 +15,6 @@ final class DayTraceViewModel: ObservableObject {
     let launchAtLogin: LaunchAtLoginController
     private var cancellables: Set<AnyCancellable> = []
     private var checkpointTimer: Timer?
-    private var lifecycleObserver: NSObjectProtocol?
     private var terminationStarted = false
     private var cachedSnapshotDate: Date?
     private var cachedSnapshot: DailyUsageSnapshot?
@@ -99,13 +98,6 @@ final class DayTraceViewModel: ObservableObject {
         checkpointTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in self?.checkpoint() }
         }
-        lifecycleObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.willTerminateNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.terminate() }
-        }
         typingCounter.start()
         socketBridge.start()
         backgroundActivity.start()
@@ -113,9 +105,6 @@ final class DayTraceViewModel: ObservableObject {
 
     deinit {
         checkpointTimer?.invalidate()
-        if let lifecycleObserver {
-            NotificationCenter.default.removeObserver(lifecycleObserver)
-        }
     }
 
     func totalUsage(at date: Date = Date()) -> TimeInterval {
@@ -398,7 +387,7 @@ final class DayTraceViewModel: ObservableObject {
         return snapshot
     }
 
-    private func terminate() {
+    func terminate() {
         guard !terminationStarted else { return }
         terminationStarted = true
         checkpointTimer?.invalidate()
