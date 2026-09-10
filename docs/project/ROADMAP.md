@@ -59,7 +59,8 @@ After the spike:
 Completed in Sprint 1A/1B:
 
 - formal DayTrace Xcode project, target, scheme, module, and test names
-- stable `com.daytrace.spike` App identity retained for TCC continuity
+- production `com.wudonggua.daytrace` App identity selected; legacy identity
+  retained for migration and rollback
 - stable `com.daytrace.spike` Native Messaging host identity retained
 - source baseline prepared for Git tracking
 - generated artifacts excluded from the repository

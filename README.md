@@ -90,18 +90,20 @@ DayTrace/
 - Do not track `DerivedData`, `xcuserdata`, `.xcuserstate`, `.xcresult`, build
   products, or `.DS_Store` files.
 
-## Stable development identities
+## Stable production identities
 
-The current development identity is intentionally stable while the code-side
-names are formalized:
+The production Mac App identity is now:
 
 ```text
-App bundle ID: com.daytrace.spike
+Mac App bundle ID: com.wudonggua.daytrace
+Legacy Mac App bundle ID: com.daytrace.spike
 Native Messaging host: com.daytrace.spike
 ```
 
-These values must not be changed casually because they are connected to macOS
-Input Monitoring/TCC identity and Chrome Native Messaging discovery.
+The Mac App Bundle ID and Native Messaging host name are intentionally
+independent. The legacy Bundle ID is retained only for UserDefaults migration
+and rollback compatibility. The Chrome extension ID remains
+`mmnoopahcchjobiajnhembdlipkhbjgo`.
 
 ## Product Completion V1 additions
 
@@ -143,11 +145,10 @@ runtime.
 
 Production tooling now distinguishes unsigned automation builds, Apple
 Development installed builds, and Developer ID distribution builds. The
-current development Bundle ID remains `com.daytrace.spike` because no
-ownership-safe final production identifier has been selected. The user-level
-Core Data and backup locations are Bundle-ID independent, and a future identity
-cutover has a known-key UserDefaults migration seam that preserves existing
-production values and keeps the old store.
+production Mac App Bundle ID is `com.wudonggua.daytrace`; the legacy identity
+`com.daytrace.spike` remains the UserDefaults migration source. The user-level
+Core Data and backup locations are Bundle-ID independent, and the migration
+seam preserves existing production values and keeps the old store.
 
 Use `scripts/install-development.sh` for a deliberate stable user-level app
 install, and `scripts/release/` for Release, DMG, notarization, and Gatekeeper

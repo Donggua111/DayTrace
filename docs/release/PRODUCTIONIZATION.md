@@ -2,10 +2,10 @@
 
 ## Current identity decision
 
-The current development identity remains `com.daytrace.spike`. No final
-ownership-safe production Bundle ID has been selected, so this repository does
-not guess one. The Native Messaging host remains `com.daytrace.spike` for
-compatibility. The active unpacked Chrome extension ID is
+The production Mac App Bundle ID is `com.wudonggua.daytrace`. The legacy
+development Bundle ID `com.daytrace.spike` remains the UserDefaults migration
+source and rollback identity. The Native Messaging host remains
+`com.daytrace.spike` for compatibility. The active unpacked Chrome extension ID is
 `mmnoopahcchjobiajnhembdlipkhbjgo`.
 
 The identity map is maintained in `scripts/daytrace-identity.sh` and mirrored
@@ -29,10 +29,12 @@ The Core Data store is already at the Bundle-ID-independent user location:
 development location remains under the same DayTrace-owned Application Support
 root. No real-user data-location migration is required in this sprint.
 
-When a future production Bundle ID is selected, the app runs a one-time,
-idempotent migration of known UserDefaults keys from `com.daytrace.spike` only.
-Existing production values win, unknown keys are ignored, and the old store is
-not deleted. Activity backups remain logical and portable across identities.
+On first production launch, the app runs a one-time, idempotent migration of
+known UserDefaults keys from `com.daytrace.spike` to
+`com.wudonggua.daytrace`. Existing production values win, unknown keys are
+ignored, DayTrace-owned metadata identities are remapped narrowly, and the old
+store is not deleted. Activity backups remain logical and portable across
+identities.
 
 ## Installation and rollback
 
@@ -50,8 +52,9 @@ extension IDs and never touches TCC or unrelated Chrome data.
 
 The project has Debug and Release configurations with marketing version `0.9.0`
 and build `1`. Signing remains automatic and uses the Team configured in the
-project; credentials are never stored in the repository. Developer ID signing
-and notarization are pipeline capabilities only until credentials exist.
+project; credentials are never stored in the repository. The current
+production candidate is Apple Development signed. Developer ID signing and
+notarization remain later-phase capabilities.
 
 Use `scripts/release/build-release.sh`, `build-dmg.sh`, `notarize.sh`, and
 `validate-release.sh`. By default, generated Release artifacts are written to

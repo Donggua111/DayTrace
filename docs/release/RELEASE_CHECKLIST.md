@@ -8,7 +8,8 @@ Chrome runtime, notarization, or Gatekeeper success.
 
 - [ ] Git tree is clean before release work.
 - [ ] Version/build increment is intentional.
-- [ ] Bundle ID is ownership-approved and unchanged for the release.
+- [ ] Mac App Bundle ID is `com.wudonggua.daytrace` for the production candidate.
+- [ ] Legacy `com.daytrace.spike` is retained only for migration/rollback.
 - [ ] Native Messaging host remains `com.daytrace.spike` unless a migration is approved.
 - [ ] Canonical Chrome extension ID is `mmnoopahcchjobiajnhembdlipkhbjgo`.
 

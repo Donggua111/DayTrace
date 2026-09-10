@@ -2579,8 +2579,8 @@ final class DayTraceTests: XCTestCase {
 
     func testDayTraceIdentityMapAndVersionResolution() {
         XCTAssertEqual(DayTraceIdentity.productName, "DayTrace")
-        XCTAssertEqual(DayTraceIdentity.developmentBundleIdentifier, "com.daytrace.spike")
-        XCTAssertNil(DayTraceIdentity.productionBundleIdentifier)
+        XCTAssertEqual(DayTraceIdentity.legacyBundleIdentifier, "com.daytrace.spike")
+        XCTAssertEqual(DayTraceIdentity.productionBundleIdentifier, "com.wudonggua.daytrace")
         XCTAssertEqual(DayTraceIdentity.nativeMessagingHostName, "com.daytrace.spike")
         XCTAssertEqual(DayTraceIdentity.chromeExtensionIdentifier, "mmnoopahcchjobiajnhembdlipkhbjgo")
 
@@ -2641,6 +2641,56 @@ final class DayTraceTests: XCTestCase {
         XCTAssertEqual(targetDefaults.string(forKey: MenuBarDisplayMode.storageKey), MenuBarDisplayMode.typing.rawValue)
         XCTAssertNil(targetDefaults.string(forKey: "daytrace.unrelated"))
         XCTAssertEqual(targetDefaults.integer(forKey: DayTracePreferencesMigration.markerKey), 1)
+
+        let secondOutcome = DayTracePreferencesMigration.migrateIfNeeded(
+            targetBundleIdentifier: targetIdentifier,
+            targetDefaults: targetDefaults,
+            legacyDomain: [MenuBarDisplayMode.storageKey: MenuBarDisplayMode.usage.rawValue]
+        )
+        XCTAssertFalse(secondOutcome.migrated)
+        XCTAssertTrue(secondOutcome.copiedKeys.isEmpty)
+    }
+
+    func testPreferencesMigrationRemapsOnlyDayTraceOwnMetadataIdentity() throws {
+        let targetIdentifier = "com.daytrace.production.metadata.\(UUID().uuidString)"
+        let targetDefaults = UserDefaults(suiteName: targetIdentifier)!
+        defer { targetDefaults.removePersistentDomain(forName: targetIdentifier) }
+
+        let rules = [
+            CategoryRule(id: UUID(), targetKind: .app, target: "com.daytrace.spike", category: "DayTrace"),
+            CategoryRule(id: UUID(), targetKind: .app, target: "com.example.tracked", category: "Other")
+        ]
+        let legacyValues: [String: Any] = [
+            "daytrace.metadata.favoriteApps": ["com.daytrace.spike", "com.example.tracked"],
+            "daytrace.metadata.categories": [
+                "com.daytrace.spike": "DayTrace",
+                "com.example.tracked": "Other"
+            ],
+            "daytrace.metadata.hiddenApps": ["com.daytrace.spike", "com.example.tracked"],
+            "daytrace.metadata.categoryRules": try JSONEncoder().encode(rules)
+        ]
+
+        _ = DayTracePreferencesMigration.migrateIfNeeded(
+            targetBundleIdentifier: targetIdentifier,
+            targetDefaults: targetDefaults,
+            legacyDomain: legacyValues
+        )
+
+        XCTAssertEqual(
+            Set(targetDefaults.stringArray(forKey: "daytrace.metadata.favoriteApps") ?? []),
+            ["com.example.tracked", targetIdentifier]
+        )
+        XCTAssertEqual(
+            Set(targetDefaults.stringArray(forKey: "daytrace.metadata.hiddenApps") ?? []),
+            ["com.example.tracked", targetIdentifier]
+        )
+        XCTAssertEqual(
+            targetDefaults.dictionary(forKey: "daytrace.metadata.categories") as? [String: String],
+            ["com.example.tracked": "Other", targetIdentifier: "DayTrace"]
+        )
+        let migratedRulesData = try XCTUnwrap(targetDefaults.data(forKey: "daytrace.metadata.categoryRules"))
+        let migratedRules = try JSONDecoder().decode([CategoryRule].self, from: migratedRulesData)
+        XCTAssertEqual(Set(migratedRules.map(\.target)), ["com.example.tracked", targetIdentifier])
     }
 
     func testSingleInstanceGuardAllowsOnlyOneOwner() {

@@ -34,7 +34,7 @@ enum DayTracePreferencesMigration {
         targetBundleIdentifier: String = DayTraceIdentity.activeBundleIdentifier,
         targetDefaults: UserDefaults = .standard,
         legacyDomain: [String: Any]? = nil,
-        legacyBundleIdentifier: String = DayTraceIdentity.developmentBundleIdentifier
+        legacyBundleIdentifier: String = DayTraceIdentity.legacyBundleIdentifier
     ) -> DayTracePreferencesMigrationOutcome {
         guard targetBundleIdentifier != legacyBundleIdentifier else {
             return DayTracePreferencesMigrationOutcome(migrated: false, copiedKeys: [])
@@ -52,10 +52,57 @@ enum DayTracePreferencesMigration {
         }
         var copiedKeys: [String] = []
         for key in eligibleKeys.sorted() where currentValues[key] == nil {
-            targetDefaults.set(oldValues[key], forKey: key)
+            targetDefaults.set(
+                migratedValue(
+                    oldValues[key],
+                    forKey: key,
+                    legacyBundleIdentifier: legacyBundleIdentifier,
+                    targetBundleIdentifier: targetBundleIdentifier
+                ),
+                forKey: key
+            )
             copiedKeys.append(key)
         }
         targetDefaults.set(DayTraceIdentity.identityMigrationVersion, forKey: markerKey)
         return DayTracePreferencesMigrationOutcome(migrated: true, copiedKeys: copiedKeys)
+    }
+
+    private static func migratedValue(
+        _ value: Any?,
+        forKey key: String,
+        legacyBundleIdentifier: String,
+        targetBundleIdentifier: String
+    ) -> Any? {
+        guard let value, legacyBundleIdentifier != targetBundleIdentifier else { return value }
+
+        switch key {
+        case "daytrace.metadata.favoriteApps", "daytrace.metadata.hiddenApps":
+            guard let identifiers = value as? [String] else { return value }
+            return Array(Set(identifiers.map { $0 == legacyBundleIdentifier ? targetBundleIdentifier : $0 })).sorted()
+        case "daytrace.metadata.categories":
+            guard var categories = value as? [String: String] else { return value }
+            if let legacyCategory = categories.removeValue(forKey: legacyBundleIdentifier),
+               categories[targetBundleIdentifier] == nil {
+                categories[targetBundleIdentifier] = legacyCategory
+            }
+            return categories
+        case "daytrace.metadata.categoryRules":
+            guard let data = value as? Data,
+                  let rules = try? JSONDecoder().decode([CategoryRule].self, from: data) else {
+                return value
+            }
+            let migratedRules = rules.map { rule in
+                guard rule.targetKind == .app, rule.target == legacyBundleIdentifier else { return rule }
+                return CategoryRule(
+                    id: rule.id,
+                    targetKind: rule.targetKind,
+                    target: targetBundleIdentifier,
+                    category: rule.category
+                )
+            }
+            return try? JSONEncoder().encode(migratedRules)
+        default:
+            return value
+        }
     }
 }

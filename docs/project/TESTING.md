@@ -511,7 +511,9 @@ it does not print or persist key details.
 The automated build may use `CODE_SIGNING_ALLOWED=NO` for compile and XCTest
 validation only. It is not a valid human Input Monitoring runtime. Manual
 permission and typing tests must launch the Apple Development-signed app from
-Xcode Run with the stable bundle identifier `com.daytrace.spike`.
+Xcode Run with the production bundle identifier `com.wudonggua.daytrace`.
+The legacy `com.daytrace.spike` identity is retained only for migration and
+rollback compatibility.
 
 ## 6. Insights & Control smoke test
 

@@ -1,17 +1,19 @@
 import Foundation
 
 /// Product identity values that must stay coordinated across the app, Chrome,
-/// Native Messaging, diagnostics, and release tooling.
+/// Native Messaging, diagnostics, and release tooling. These identities are
+/// intentionally separate: changing the Mac app Bundle ID does not rename the
+/// Chrome Native Messaging protocol or its extension.
 enum DayTraceIdentity {
     static let productName = "DayTrace"
-    static let developmentBundleIdentifier = "com.daytrace.spike"
-    static let productionBundleIdentifier: String? = nil
+    static let legacyBundleIdentifier = "com.daytrace.spike"
+    static let productionBundleIdentifier = "com.wudonggua.daytrace"
     static let nativeMessagingHostName = "com.daytrace.spike"
     static let chromeExtensionIdentifier = "mmnoopahcchjobiajnhembdlipkhbjgo"
     static let identityMigrationVersion = 1
 
     static var activeBundleIdentifier: String {
-        Bundle.main.bundleIdentifier ?? developmentBundleIdentifier
+        Bundle.main.bundleIdentifier ?? productionBundleIdentifier
     }
 
     static func versionInfo(from info: [String: Any]) -> (marketing: String, build: String) {

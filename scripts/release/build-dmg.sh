@@ -7,7 +7,7 @@ OUTPUT_DIR="${DAYTRACE_RELEASE_OUTPUT_DIR:-$HOME/Applications/DayTrace/ReleaseAr
 APP_PATH="${1:-$OUTPUT_DIR/DayTrace.app}"
 OUTPUT_PATH="${2:-$OUTPUT_DIR/DayTrace-local.dmg}"
 [[ -d "$APP_PATH" ]] || { echo "DayTrace.app not found: $APP_PATH" >&2; exit 1; }
-[[ "$(plutil -extract CFBundleIdentifier raw -o - "$APP_PATH/Contents/Info.plist")" == "$DAYTRACE_DEVELOPMENT_BUNDLE_ID" ]] || { echo "Unexpected Bundle ID" >&2; exit 1; }
+[[ "$(plutil -extract CFBundleIdentifier raw -o - "$APP_PATH/Contents/Info.plist")" == "$DAYTRACE_PRODUCTION_BUNDLE_ID" ]] || { echo "Unexpected Bundle ID" >&2; exit 1; }
 mkdir -p "$(dirname "$OUTPUT_PATH")"
 rm -f "$OUTPUT_PATH"
 hdiutil create -volname DayTrace -srcfolder "$APP_PATH" -ov -format UDZO "$OUTPUT_PATH"

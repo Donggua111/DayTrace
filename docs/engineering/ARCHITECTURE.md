@@ -120,17 +120,19 @@ usage.
 
 ## Stable identities
 
-These values are intentionally frozen for the current Internal Beta foundation:
+These values are intentionally separated for the production identity:
 
 ```text
-App bundle ID: com.daytrace.spike
+Mac App bundle ID: com.wudonggua.daytrace
+Legacy Mac App bundle ID: com.daytrace.spike
 Native Messaging host name: com.daytrace.spike
 Native Messaging type: stdio
 ```
 
-The App bundle ID must remain stable because it is associated with macOS Input
-Monitoring/TCC identity. The Native Messaging host name must remain stable
-because Chrome discovers the host by that exact name.
+The production App bundle ID is associated with the production macOS Input
+Monitoring/TCC identity. The legacy Bundle ID remains available for preference
+migration and controlled rollback. The Native Messaging host name must remain
+stable because Chrome discovers the host by that exact name.
 
 The current unpacked development extension ID is
 `mmnoopahcchjobiajnhembdlipkhbjgo`, confirmed from the active Chrome profile.
@@ -387,17 +389,18 @@ no activity lists, URLs, domains, Timeline rows, paths, or typed content.
 
 ## Productionization V1 decisions
 
-The final production Bundle ID is intentionally unresolved; the repository
-preserves `com.daytrace.spike` until an ownership-safe identifier is explicitly
-selected. The Native Messaging host remains `com.daytrace.spike` for protocol
-compatibility, and the canonical unpacked Chrome extension ID is
+The final production Mac App Bundle ID is `com.wudonggua.daytrace`; the legacy
+identity `com.daytrace.spike` remains the migration source. The Native
+Messaging host remains `com.daytrace.spike` for protocol compatibility, and
+the canonical unpacked Chrome extension ID is
 `mmnoopahcchjobiajnhembdlipkhbjgo`.
 
 The Core Data store and backups use user Application Support paths that do not
 depend on the Bundle ID. `DayTracePreferencesMigration` copies only known
-DayTrace settings during a future identity cutover, is idempotent, preserves
-newer production values, and never deletes the old store. A kernel-held
-user-only runtime lock prevents multiple writers and Unix socket owners.
+DayTrace settings from the legacy domain, is idempotent, preserves newer
+production values, narrowly remaps only DayTrace's own old metadata identity,
+and never deletes the old store. A kernel-held user-only runtime lock prevents
+multiple writers and Unix socket owners across legacy and production identities.
 
 Automation, Development, and Distribution artifacts are separate classes.
 Release tooling never embeds credentials, and missing Developer ID or Notary

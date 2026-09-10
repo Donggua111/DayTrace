@@ -80,8 +80,9 @@ are presentation metadata, distinct from the deferred Exclude Tracking mode.
 
 Status: implemented as local infrastructure; final production identity pending
 
-- Keep the development Bundle ID `com.daytrace.spike` until an explicit
-  ownership-safe production Bundle ID is selected.
+- Use `com.wudonggua.daytrace` as the production Mac App Bundle ID.
+- Retain `com.daytrace.spike` as the legacy Bundle ID for UserDefaults
+  migration and controlled rollback.
 - Keep the Native Messaging host name `com.daytrace.spike` for compatibility.
 - Treat `mmnoopahcchjobiajnhembdlipkhbjgo` as the canonical current unpacked
   Chrome extension ID.
