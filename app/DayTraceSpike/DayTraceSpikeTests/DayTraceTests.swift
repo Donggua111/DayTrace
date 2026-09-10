@@ -1657,6 +1657,48 @@ final class DayTraceTests: XCTestCase {
         ))
     }
 
+    func testBackupCreatesArtifactWhenStoreIsDegradedButReadable() throws {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        var shouldFailSave = false
+        let store = UsageStore(
+            inMemory: true,
+            calendarProvider: { calendar },
+            saveHandler: { context in
+                if shouldFailSave {
+                    throw NSError(domain: "DayTraceTests", code: 2)
+                }
+                try context.save()
+            }
+        )
+        let app = AppIdentity(bundleIdentifier: "com.example.backup.degraded", displayName: "Degraded Store")
+        let date = makeDate(day: 30, hour: 10, minute: 30, second: 0, calendar: calendar)
+        store.recordForegroundInterval(ForegroundInterval(
+            id: UUID(), app: app, start: date, end: date.addingTimeInterval(10), duration: 10
+        ))
+        XCTAssertTrue(store.checkpoint(at: date.addingTimeInterval(10)))
+
+        shouldFailSave = true
+        store.recordForegroundInterval(ForegroundInterval(
+            id: UUID(), app: app, start: date.addingTimeInterval(20), end: date.addingTimeInterval(30), duration: 10
+        ))
+        XCTAssertFalse(store.checkpoint(at: date.addingTimeInterval(30)))
+        guard case .degraded = store.status else {
+            return XCTFail("A failed recoverable save should leave the store degraded")
+        }
+
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("DayTrace-backup-degraded-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let suiteName = "DayTraceTests-\(UUID().uuidString)"
+        let suite = UserDefaults(suiteName: suiteName)!
+        defer { suite.removePersistentDomain(forName: suiteName) }
+        let manager = BackupManager(defaults: suite, directoryOverride: directory, now: { date })
+
+        let backup = try XCTUnwrap(manager.createBackup(using: store))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: backup.path))
+        XCTAssertNotNil(store.exportAggregatesJSON(includeDetailedTimeline: true))
+    }
+
     func testBackupFailureDoesNotReportSuccessOrLeaveDestination() {
         let calendar = fixedCalendar(timeZone: "UTC")
         let store = UsageStore(inMemory: true, calendarProvider: { calendar })

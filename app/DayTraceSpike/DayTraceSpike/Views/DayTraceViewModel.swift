@@ -194,10 +194,11 @@ final class DayTraceViewModel: ObservableObject {
     }
 
     func createBackup() -> URL? {
-        // "Back Up Now" includes the current in-memory interval and typing
-        // aggregates. Automatic backup is suppressed here so one explicit
-        // action cannot create a second backup through the checkpoint path.
-        guard checkpoint(allowAutomaticBackup: false) else { return nil }
+        // "Back Up Now" tries to include the current in-memory interval and
+        // typing aggregates. If that checkpoint hits a recoverable persistence
+        // error, still export the readable durable snapshot instead of
+        // suppressing the user's explicit backup action.
+        _ = checkpoint(allowAutomaticBackup: false)
         return backupManager.createBackup(using: usageStore)
     }
 

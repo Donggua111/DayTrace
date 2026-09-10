@@ -350,7 +350,11 @@ final class BackupManager: ObservableObject {
         lastError = nil
         let now = nowProvider()
         var destinationURL: URL?
-        guard store.status == .ready, let exported = store.exportAggregatesJSON(includeDetailedTimeline: true) else {
+        // A degraded store can still be readable and exportable. It represents
+        // a recoverable persistence warning, while a failed store means the
+        // persistent container is unavailable. Manual backup should preserve
+        // the readable snapshot in the former case.
+        guard store.status.isReady, let exported = store.exportAggregatesJSON(includeDetailedTimeline: true) else {
             lastError = "Unable to export aggregate data"
             return nil
         }
