@@ -13,6 +13,25 @@ enum BackgroundActivityKind: String, CaseIterable, Codable, Identifiable {
         case .visibleSurface: return "background.activity.visibleSurface"
         }
     }
+
+    /// Audio can remain observable while the interactive session is locked;
+    /// a visible surface cannot be meaningfully visible in that state.
+    var continuesWhileSessionLocked: Bool {
+        self == .audioPlayback
+    }
+
+    /// Background activity has a kind-specific lifecycle policy. Manual pause
+    /// and system sleep remain global stop conditions for every kind.
+    func isEligible(for trackingState: TrackingSystemState) -> Bool {
+        switch trackingState {
+        case .awake:
+            return true
+        case .locked:
+            return continuesWhileSessionLocked
+        case .sleeping, .paused, .unavailable:
+            return false
+        }
+    }
 }
 
 enum BackgroundDetectorState: Equatable {

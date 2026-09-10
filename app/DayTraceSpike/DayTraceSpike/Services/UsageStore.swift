@@ -573,11 +573,11 @@ final class UsageStore: ObservableObject {
         enabledDetectorIdentifiers: Set<String>,
         at date: Date
     ) -> Bool {
-        let canRecord = globallyEnabled && trackingState == .awake
         let desired = Set(snapshots.compactMap { snapshot -> String? in
-            guard canRecord,
+            guard globallyEnabled,
                   enabledDetectorIdentifiers.contains(snapshot.identifier),
                   snapshot.isActive,
+                  snapshot.activityKind.isEligible(for: trackingState),
                   snapshot.app.bundleIdentifier != foregroundApp?.bundleIdentifier else { return nil }
             return snapshot.identifier
         })

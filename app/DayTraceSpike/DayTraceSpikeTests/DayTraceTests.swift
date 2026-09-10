@@ -2221,7 +2221,21 @@ final class DayTraceTests: XCTestCase {
         XCTAssertEqual(store.snapshot(at: start.addingTimeInterval(12)).totalUsage, 12, accuracy: 0.001)
     }
 
-    func testBackgroundActivityClosesOnLockAndResumesAfterUnlock() {
+    func testBackgroundActivityPolicySeparatesAudioLockFromVisibleSurface() {
+        XCTAssertTrue(BackgroundActivityKind.audioPlayback.continuesWhileSessionLocked)
+        XCTAssertTrue(BackgroundActivityKind.audioPlayback.isEligible(for: .awake))
+        XCTAssertTrue(BackgroundActivityKind.audioPlayback.isEligible(for: .locked))
+        XCTAssertFalse(BackgroundActivityKind.audioPlayback.isEligible(for: .sleeping))
+        XCTAssertFalse(BackgroundActivityKind.audioPlayback.isEligible(for: .paused))
+
+        XCTAssertFalse(BackgroundActivityKind.visibleSurface.continuesWhileSessionLocked)
+        XCTAssertTrue(BackgroundActivityKind.visibleSurface.isEligible(for: .awake))
+        XCTAssertFalse(BackgroundActivityKind.visibleSurface.isEligible(for: .locked))
+        XCTAssertFalse(BackgroundActivityKind.visibleSurface.isEligible(for: .sleeping))
+        XCTAssertFalse(BackgroundActivityKind.visibleSurface.isEligible(for: .paused))
+    }
+
+    func testBackgroundAudioContinuesAcrossLockWithSameInterval() {
         let calendar = fixedCalendar(timeZone: "UTC")
         let store = UsageStore(inMemory: true, calendarProvider: { calendar })
         let tracker = ForegroundTracker()
@@ -2235,15 +2249,153 @@ final class DayTraceTests: XCTestCase {
         _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start)
         XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
         tracker.handleSystemEventForTesting(.lock, at: start.addingTimeInterval(10))
-        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        let lockedInterval = store.backgroundSummary(for: start, now: start.addingTimeInterval(20)).intervals.first!
+        XCTAssertEqual(lockedInterval.duration, 20, accuracy: 0.001)
         tracker.handleSystemEventForTesting(.unlock, at: start.addingTimeInterval(20), frontmostApp: foreground)
         _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start.addingTimeInterval(20))
         XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(30), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
 
         let intervals = store.backgroundSummary(for: start, now: start.addingTimeInterval(30)).intervals
+        XCTAssertEqual(intervals.count, 1)
+        XCTAssertEqual(intervals.first?.id, lockedInterval.id)
+        XCTAssertEqual(intervals.first?.duration ?? 0, 30, accuracy: 0.001)
+    }
+
+    func testVisibleSurfaceClosesOnLockAndStartsFreshIntervalAfterUnlock() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.editor.visible", displayName: "Editor")
+        let background = AppIdentity(bundleIdentifier: "com.example.surface.lock", displayName: "Surface")
+        let start = makeDate(day: 30, hour: 12, minute: 30, second: 0, calendar: calendar)
+        let observation = BackgroundDetectorSnapshot(identifier: "surface", app: background, activityKind: .visibleSurface, state: .active(processRunning: true), observedAt: start)
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["surface"], at: start)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["surface"]))
+
+        tracker.handleSystemEventForTesting(.lock, at: start.addingTimeInterval(10))
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: nil, trackingState: .locked, globallyEnabled: true, enabledDetectorIdentifiers: ["surface"], at: start.addingTimeInterval(10))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["surface"]))
+
+        tracker.handleSystemEventForTesting(.unlock, at: start.addingTimeInterval(20), frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["surface"], at: start.addingTimeInterval(20))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(30), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["surface"]))
+
+        let intervals = store.backgroundSummary(for: start, now: start.addingTimeInterval(30)).intervals
         XCTAssertEqual(intervals.count, 2)
         XCTAssertEqual(intervals.map(\.duration).reduce(0, +), 20, accuracy: 0.001)
-        XCTAssertTrue(intervals.allSatisfy { $0.end <= start.addingTimeInterval(30) })
+        XCTAssertNotEqual(intervals[0].id, intervals[1].id)
+    }
+
+    func testBackgroundAudioPauseAndResumeWhileLockedSplitsIntervals() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.editor.audio", displayName: "Editor")
+        let background = AppIdentity(bundleIdentifier: "com.example.audio.pause", displayName: "Audio")
+        let start = makeDate(day: 30, hour: 13, minute: 0, second: 0, calendar: calendar)
+        let active = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start)
+        let inactive = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .inactive(processRunning: true), observedAt: start.addingTimeInterval(25))
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [active], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start)
+        tracker.handleSystemEventForTesting(.lock, at: start.addingTimeInterval(10))
+        _ = store.updateBackgroundActivity(snapshots: [active], foregroundApp: nil, trackingState: .locked, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start.addingTimeInterval(10))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), backgroundObservations: [active], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        _ = store.updateBackgroundActivity(snapshots: [inactive], foregroundApp: nil, trackingState: .locked, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start.addingTimeInterval(25))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(25), backgroundObservations: [inactive], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        XCTAssertEqual(store.backgroundSummary(for: start, now: start.addingTimeInterval(25)).intervals.count, 1)
+        _ = store.updateBackgroundActivity(snapshots: [active], foregroundApp: nil, trackingState: .locked, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start.addingTimeInterval(35))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(40), backgroundObservations: [active], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+
+        let intervals = store.backgroundSummary(for: start, now: start.addingTimeInterval(40)).intervals
+        XCTAssertEqual(intervals.count, 2)
+        XCTAssertEqual(intervals.map(\.duration).reduce(0, +), 25, accuracy: 0.001)
+        XCTAssertNotEqual(intervals[0].id, intervals[1].id)
+    }
+
+    func testBackgroundAudioStopsWhenTrackingIsPaused() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.editor.paused", displayName: "Editor")
+        let background = AppIdentity(bundleIdentifier: "com.example.audio.paused", displayName: "Audio")
+        let start = makeDate(day: 30, hour: 13, minute: 30, second: 0, calendar: calendar)
+        let observation = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start)
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [observation], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+
+        tracker.handleSystemEventForTesting(.pause, at: start.addingTimeInterval(10))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), backgroundObservations: [observation], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+
+        let intervals = store.backgroundSummary(for: start, now: start.addingTimeInterval(20)).intervals
+        XCTAssertEqual(intervals.count, 1)
+        XCTAssertEqual(intervals.first?.duration ?? 0, 10, accuracy: 0.001)
+    }
+
+    func testDayTracePauseClosesAudioAndVisibleSurface() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.editor.global-pause", displayName: "Editor")
+        let audio = AppIdentity(bundleIdentifier: "com.example.audio.global-pause", displayName: "Audio")
+        let surface = AppIdentity(bundleIdentifier: "com.example.surface.global-pause", displayName: "Surface")
+        let start = makeDate(day: 30, hour: 13, minute: 45, second: 0, calendar: calendar)
+        let observations = [
+            BackgroundDetectorSnapshot(identifier: "audio", app: audio, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start),
+            BackgroundDetectorSnapshot(identifier: "surface", app: surface, activityKind: .visibleSurface, state: .active(processRunning: true), observedAt: start)
+        ]
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: observations, foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio", "surface"], at: start)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: observations, backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio", "surface"]))
+
+        tracker.handleSystemEventForTesting(.pause, at: start.addingTimeInterval(10))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), backgroundObservations: observations, backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio", "surface"]))
+
+        let intervals = store.backgroundSummary(for: start, now: start.addingTimeInterval(20)).intervals
+        XCTAssertEqual(intervals.count, 2)
+        XCTAssertEqual(Set(intervals.map(\.activityKind)), [.audioPlayback, .visibleSurface])
+        XCTAssertTrue(intervals.allSatisfy { abs($0.duration - 10) < 0.001 })
+    }
+
+    func testBackgroundAudioClosesAtSystemSleepAndCanResumeOnlyWhenActiveAfterWake() {
+        let calendar = fixedCalendar(timeZone: "UTC")
+        let store = UsageStore(inMemory: true, calendarProvider: { calendar })
+        let tracker = ForegroundTracker()
+        let domains = DomainTracker(foregroundTracker: tracker)
+        let foreground = AppIdentity(bundleIdentifier: "com.example.editor.sleep", displayName: "Editor")
+        let background = AppIdentity(bundleIdentifier: "com.example.audio.sleep", displayName: "Audio")
+        let start = makeDate(day: 30, hour: 14, minute: 0, second: 0, calendar: calendar)
+        let active = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .active(processRunning: true), observedAt: start)
+        let inactive = BackgroundDetectorSnapshot(identifier: "audio", app: background, activityKind: .audioPlayback, state: .inactive(processRunning: true), observedAt: start.addingTimeInterval(20))
+        tracker.handleSystemEventForTesting(.pause, at: start)
+        tracker.handleSystemEventForTesting(.resume, at: start, frontmostApp: foreground)
+        _ = store.updateBackgroundActivity(snapshots: [active], foregroundApp: foreground, trackingState: .awake, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start)
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(10), backgroundObservations: [active], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        tracker.handleSystemEventForTesting(.sleep, at: start.addingTimeInterval(10))
+        _ = store.updateBackgroundActivity(snapshots: [active], foregroundApp: nil, trackingState: .sleeping, globallyEnabled: true, enabledDetectorIdentifiers: ["audio"], at: start.addingTimeInterval(10))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(20), backgroundObservations: [active], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        XCTAssertEqual(store.backgroundSummary(for: start, now: start.addingTimeInterval(20)).intervals.map(\.duration).reduce(0, +), 10, accuracy: 0.001)
+
+        tracker.handleSystemEventForTesting(.wake, at: start.addingTimeInterval(20))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(25), backgroundObservations: [inactive], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        XCTAssertEqual(store.backgroundSummary(for: start, now: start.addingTimeInterval(25)).intervals.count, 1)
+
+        tracker.handleSystemEventForTesting(.lock, at: start.addingTimeInterval(25))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(30), backgroundObservations: [active], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        XCTAssertTrue(store.checkpoint(foregroundTracker: tracker, domainTracker: domains, at: start.addingTimeInterval(35), backgroundObservations: [active], backgroundActivityEnabled: true, enabledBackgroundDetectorIdentifiers: ["audio"]))
+        let intervals = store.backgroundSummary(for: start, now: start.addingTimeInterval(35)).intervals
+        XCTAssertEqual(intervals.count, 2)
+        XCTAssertEqual(intervals.last?.duration ?? 0, 5, accuracy: 0.001)
     }
 
     func testBackgroundActivitySplitsAtMidnight() {
