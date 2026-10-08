@@ -2204,6 +2204,74 @@ final class DayTraceTests: XCTestCase {
         XCTAssertEqual(surface.inspectCount, 1)
     }
 
+    func testWorkspaceBackgroundProcessLookupRefreshesTargetedPIDResults() {
+        let bundleIdentifier = "com.example.background"
+        var currentProcessIDs: [pid_t] = [101, 102]
+        var queriedBundleIdentifiers: [String] = []
+        let lookup = WorkspaceBackgroundProcessLookup { requestedBundleIdentifier in
+            queriedBundleIdentifiers.append(requestedBundleIdentifier)
+            return currentProcessIDs
+        }
+
+        XCTAssertEqual(lookup.processIDs(for: bundleIdentifier), [101, 102])
+        currentProcessIDs = []
+        XCTAssertEqual(lookup.processIDs(for: bundleIdentifier), [])
+        currentProcessIDs = [303]
+        XCTAssertEqual(lookup.processIDs(for: bundleIdentifier), [303])
+        XCTAssertEqual(queriedBundleIdentifiers, Array(repeating: bundleIdentifier, count: 3))
+    }
+
+    func testBackgroundDetectorsRecognizeLaunchExitAndPIDReplacement() {
+        let lookup = BackgroundMutableTestProcessLookup()
+        let audio = BackgroundPIDAudioProvider()
+        let surface = BackgroundPIDSurfaceProvider()
+        let audioDetector = ProcessAudioActivityDetector(
+            identifier: "netease.audioPlayback",
+            app: BackgroundActivityCatalog.netEase,
+            processLookup: lookup,
+            audioStateProvider: audio
+        )
+        let surfaceDetector = VisibleSurfaceActivityDetector(
+            identifier: "nookx.visibleSurface",
+            app: BackgroundActivityCatalog.nookX,
+            processLookup: lookup,
+            surfaceProvider: surface
+        )
+
+        lookup.set([11], for: BackgroundActivityCatalog.netEase.bundleIdentifier)
+        audio.set(true, for: 11)
+        XCTAssertTrue(audioDetector.inspect(at: Date()).isActive)
+        XCTAssertEqual(audio.lastInspectedProcessID, 11)
+
+        lookup.set([22], for: BackgroundActivityCatalog.netEase.bundleIdentifier)
+        audio.set(true, for: 22)
+        XCTAssertTrue(audioDetector.inspect(at: Date()).isActive)
+        XCTAssertEqual(audio.lastInspectedProcessID, 22)
+
+        lookup.set([], for: BackgroundActivityCatalog.netEase.bundleIdentifier)
+        let exitedAudio = audioDetector.inspect(at: Date())
+        XCTAssertFalse(exitedAudio.isActive)
+        XCTAssertEqual(audio.lastInspectedProcessID, 22, "An exited app must not be queried through CoreAudio")
+
+        lookup.set([33], for: BackgroundActivityCatalog.nookX.bundleIdentifier)
+        surface.set(true, for: 33)
+        XCTAssertTrue(surfaceDetector.inspect(at: Date()).isActive)
+        XCTAssertEqual(surface.lastInspectedProcessID, 33)
+
+        lookup.set([], for: BackgroundActivityCatalog.nookX.bundleIdentifier)
+        XCTAssertFalse(surfaceDetector.inspect(at: Date()).isActive)
+
+        lookup.set([44], for: BackgroundActivityCatalog.nookX.bundleIdentifier)
+        surface.set(true, for: 44)
+        XCTAssertTrue(surfaceDetector.inspect(at: Date()).isActive)
+        XCTAssertEqual(surface.lastInspectedProcessID, 44)
+        XCTAssertEqual(lookup.queriedBundleIdentifiers.suffix(3), [
+            BackgroundActivityCatalog.nookX.bundleIdentifier,
+            BackgroundActivityCatalog.nookX.bundleIdentifier,
+            BackgroundActivityCatalog.nookX.bundleIdentifier
+        ])
+    }
+
     func testBackgroundActivityPersistsWithoutChangingForegroundTotal() {
         let calendar = fixedCalendar(timeZone: "UTC")
         let store = UsageStore(inMemory: true, calendarProvider: { calendar })
@@ -2754,6 +2822,20 @@ private final class BackgroundTestProcessLookup: BackgroundProcessLookup {
     func processIDs(for bundleIdentifier: String) -> [pid_t] { processIDs }
 }
 
+private final class BackgroundMutableTestProcessLookup: BackgroundProcessLookup {
+    private var processIDsByBundleIdentifier: [String: [pid_t]] = [:]
+    private(set) var queriedBundleIdentifiers: [String] = []
+
+    func set(_ processIDs: [pid_t], for bundleIdentifier: String) {
+        processIDsByBundleIdentifier[bundleIdentifier] = processIDs
+    }
+
+    func processIDs(for bundleIdentifier: String) -> [pid_t] {
+        queriedBundleIdentifiers.append(bundleIdentifier)
+        return processIDsByBundleIdentifier[bundleIdentifier] ?? []
+    }
+}
+
 private final class BackgroundTestAudioProvider: ProcessAudioStateProvider {
     let value: Bool?
     private(set) var inspectCount = 0
@@ -2766,4 +2848,32 @@ private final class BackgroundTestSurfaceProvider: VisibleSurfaceProvider {
     private(set) var inspectCount = 0
     init(value: Bool) { self.value = value }
     func hasRelevantSurface(for processID: pid_t) -> Bool { inspectCount += 1; return value }
+}
+
+private final class BackgroundPIDAudioProvider: ProcessAudioStateProvider {
+    private var valuesByProcessID: [pid_t: Bool] = [:]
+    private(set) var lastInspectedProcessID: pid_t?
+
+    func set(_ value: Bool, for processID: pid_t) {
+        valuesByProcessID[processID] = value
+    }
+
+    func outputIsRunning(for processID: pid_t) -> Bool? {
+        lastInspectedProcessID = processID
+        return valuesByProcessID[processID]
+    }
+}
+
+private final class BackgroundPIDSurfaceProvider: VisibleSurfaceProvider {
+    private var valuesByProcessID: [pid_t: Bool] = [:]
+    private(set) var lastInspectedProcessID: pid_t?
+
+    func set(_ value: Bool, for processID: pid_t) {
+        valuesByProcessID[processID] = value
+    }
+
+    func hasRelevantSurface(for processID: pid_t) -> Bool {
+        lastInspectedProcessID = processID
+        return valuesByProcessID[processID] ?? false
+    }
 }

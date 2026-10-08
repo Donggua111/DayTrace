@@ -8,10 +8,18 @@ protocol BackgroundProcessLookup {
 }
 
 final class WorkspaceBackgroundProcessLookup: BackgroundProcessLookup {
-    func processIDs(for bundleIdentifier: String) -> [pid_t] {
-        NSWorkspace.shared.runningApplications
-            .filter { !$0.isTerminated && $0.bundleIdentifier == bundleIdentifier }
+    private let processIDQuery: (String) -> [pid_t]
+
+    init(processIDQuery: @escaping (String) -> [pid_t] = { bundleIdentifier in
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundleIdentifier)
+            .filter { !$0.isTerminated }
             .map(\.processIdentifier)
+    }) {
+        self.processIDQuery = processIDQuery
+    }
+
+    func processIDs(for bundleIdentifier: String) -> [pid_t] {
+        processIDQuery(bundleIdentifier)
     }
 }
 
