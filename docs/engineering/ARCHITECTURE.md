@@ -1,13 +1,16 @@
 # DayTrace Architecture
 
-Status: Internal Beta Sprint 3 hardening baseline
-Scope: validated tracking capabilities, local aggregate persistence, and the
-small product surfaces built over that boundary
+**Languages / 语言：** [English](#daytrace-architecture) · [简体中文](#简体中文)
 
-This document records the architecture currently allowed to move forward into
-Internal Beta validation. Sprint 3 adds History, menu bar, launch-at-login,
-export, and delete-data surfaces without changing the tracking, typing, domain,
-IPC, or privacy boundaries.
+Status: implementation snapshot; verify current behavior against source/tests
+Scope: tracking capabilities, local persistence, and product surfaces built
+over the privacy boundary
+
+This document describes the implementation boundary and design decisions. It
+is not a claim that every real-Mac integration has passed on the current
+revision; see the test record for validation evidence. Product surfaces such
+as History, menu bar, launch-at-login, export, and data deletion are layered on
+the tracking and privacy boundaries below.
 
 ## Runtime topology
 
@@ -118,27 +121,16 @@ canonical row using the greatest aggregate value. They are never blindly
 summed, which prevents a repeated or partially migrated row from inflating
 usage.
 
-## Stable identities
+## Runtime identities
 
-These values are intentionally separated for the production identity:
-
-```text
-Mac App bundle ID: com.wudonggua.daytrace
-Legacy Mac App bundle ID: com.daytrace.spike
-Native Messaging host name: com.daytrace.spike
-Native Messaging type: stdio
-```
-
-The production App bundle ID is associated with the production macOS Input
-Monitoring/TCC identity. The legacy Bundle ID remains available for preference
-migration and controlled rollback. The Native Messaging host name must remain
-stable because Chrome discovers the host by that exact name.
-
-The current unpacked development extension ID is
-`mmnoopahcchjobiajnhembdlipkhbjgo`, confirmed from the active Chrome profile.
-Native Messaging has one source of truth for this spike:
-`extension/chrome/service-worker.js` requests `com.daytrace.spike`, and the
-installer accepts only this extension ID when writing the user-level manifest.
+The Native Messaging host name is a protocol identity shared by the Chrome
+service worker and the generated user-level host manifest. A contributor's
+unpacked Chrome extension ID is profile/package-specific and must be configured
+for that developer; it must not be copied from another user's profile. The app
+Bundle ID is also tied to the developer's signing/TCC identity. The current
+project still has maintainer-specific identity defaults, which are an explicit
+open-source preparation item and must be replaced with contributor-neutral
+configuration before a public release. See [BUILDING.md](../../BUILDING.md).
 
 ## Foreground usage
 
@@ -389,11 +381,10 @@ no activity lists, URLs, domains, Timeline rows, paths, or typed content.
 
 ## Productionization V1 decisions
 
-The final production Mac App Bundle ID is `com.wudonggua.daytrace`; the legacy
-identity `com.daytrace.spike` remains the migration source. The Native
-Messaging host remains `com.daytrace.spike` for protocol compatibility, and
-the canonical unpacked Chrome extension ID is
-`mmnoopahcchjobiajnhembdlipkhbjgo`.
+The production App Bundle ID is maintainer-configured; the legacy development
+identity remains the migration source. The Native Messaging host remains
+`com.daytrace.spike` for protocol compatibility. App and extension identifiers
+must be configured for each contributor and are not portable profile data.
 
 The Core Data store and backups use user Application Support paths that do not
 depend on the Bundle ID. `DayTracePreferencesMigration` copies only known
@@ -406,3 +397,145 @@ Automation, Development, and Distribution artifacts are separate classes.
 Release tooling never embeds credentials, and missing Developer ID or Notary
 credentials leave distribution as pending rather than being reported as
 successful.
+
+## System events, attribution, and interval time model
+
+Foreground state is event-driven: `ForegroundTracker` observes AppKit workspace
+activation, sleep/wake, active-session changes, screen lock/unlock notifications,
+and system calendar/time changes. It records a frontmost app only while tracking
+is enabled and the session is awake and active. These notifications are OS
+signals, not a guarantee that every transition is delivered under every system
+condition; lifecycle behavior is covered by deterministic tests and named
+real-Mac checks.
+
+Attribution has four distinct lanes:
+
+1. **Foreground app** is the primary, non-overlapping usage lane.
+2. **Website** is a sanitized Chrome hostname child and accrues only while
+   Chrome is foreground. It never adds to total Mac usage.
+3. **Typing** is a separate aggregate metric, attributed to the foreground app
+   observed when each supported key-down is classified.
+4. **Background activity** is an overlapping, interval-only lane for supported
+   detectors. It is never added to foreground or website totals.
+
+Intervals carry a stable ID, local date key, start/end, duration, and open-state
+recovery metadata. Runtime intervals are checkpointed in place; transitions
+close one interval and begin another. Day boundaries split intervals according
+to the current local calendar. Stale open intervals are recovered at their
+last durable end rather than extended across downtime. Daily aggregate records
+remain canonical for totals; Timeline rows provide detail and do not replace or
+recompute those canonical aggregates.
+
+## System event monitoring and lifecycle
+
+`TypingCounter` uses `CGEvent.tapCreate` with `.listenOnly` and a key-down-only
+event mask. CoreGraphics preflight is used for the Event Tap permission path;
+IOHID permission status is diagnostic, not a gate overriding a functioning
+tap. Event Tap and RunLoop objects are owned by a dedicated serial queue. Tap
+timeouts are re-enabled; app activation rechecks permission and attempts
+recovery. Events are transiently classified and only aggregate category,
+foreground app identity, and timestamp cross into persistence.
+
+`AppDelegate` acquires a kernel-backed advisory lock before the app starts its
+tracking services. A competing process exits before creating another writer.
+Normal termination quiesces typing, checkpoints the store, closes background
+intervals, and stops IPC/Event Tap resources. This protects a single local
+writer; it is not a distributed lock or a data-encryption feature.
+
+## Chrome Native Messaging and Unix socket IPC
+
+The Manifest V3 extension requests `tabs` and `nativeMessaging`; it has no broad
+host permission. The service worker transiently reads the active tab URL only
+to derive a hostname or one of the approved states (`Browser Internal`,
+`Local File`, `Unknown`). It sends a length-prefixed Chrome Native Messaging
+message to the registered stdio host. The host validates an exact small schema,
+sanitizes the domain token, and forwards only that token through a user-level
+Unix domain socket. The app validates the schema and hostname again before
+updating `DomainTracker`.
+
+The socket is local-only, created under the user's Application Support area
+with restrictive directory/socket permissions. There is no TCP listener,
+message queue, or domain persistence in the host. If the app is unavailable,
+the host rejects quickly; it does not cache or retry domain events. Host name,
+extension ID, and app Bundle ID are separate identities and must be configured
+consistently for a developer's environment.
+
+## Core Data, backups, and recovery
+
+`UsageStore` owns a programmatically defined Core Data model backed by SQLite
+under the user's Bundle-ID-independent Application Support directory. App,
+website, typing, Timeline, and background records use aggregate or interval
+granularity; raw event streams are not persisted. Uniqueness constraints and
+normalization prevent duplicate logical rows from being blindly summed.
+
+Checkpointing runs every 30 seconds and on important transitions/termination.
+Runtime progress cursors advance only after a successful save, allowing failed
+saves to be retried without losing the pending delta. Restore uses a versioned
+JSON envelope, validates before changing data, creates a safety backup, and
+replaces supported datasets in a transaction; it is not a merge. Backup
+contents can include aggregate and, when selected, detailed interval metadata.
+Real legacy-store migration evidence is unavailable where no prior-schema
+fixture/store exists; this must not be represented as a migration pass.
+
+## Performance engineering
+
+The current code uses event notifications for foreground changes, one shared
+two-second refresh cadence for the supported background detectors, and a
+30-second persistence checkpoint. Background process discovery uses targeted
+`runningApplications(withBundleIdentifier:)` lookup rather than enumerating all
+apps. Snapshot/icon caching and delta-based accumulation are used in the
+presentation and persistence paths. These are implementation choices, not a
+published CPU, energy, memory, or battery guarantee. Performance claims require
+repeatable measurements under documented conditions; no benchmark result is
+inferred from the presence of a timer or an optimization in source.
+
+The menu-bar controller has a one-second refresh timer only when the selected
+display mode requires a live value; this refresh updates presentation, not the
+persistence cadence. This code fact alone is not evidence of measurable load.
+
+## 简体中文
+
+### 系统事件、归属和区间时间模型
+
+前台状态由事件驱动：`ForegroundTracker` 监听 AppKit workspace 应用激活、睡眠/唤醒、会话活跃状态、锁屏/解锁通知，以及系统日历和时间变化。只有跟踪已启用且会话处于唤醒、活跃状态时才记录前台应用。这些是操作系统信号，不保证所有环境下都能交付每一次状态变化；生命周期由确定性测试和命名的真实 Mac 检查覆盖。
+
+归属分为四条独立数据通道：
+
+1. **前台应用**是主要且不重叠的使用时间通道。
+2. **网站**是清理后的 Chrome 主机名子项，只有 Chrome 在前台时才累计，不增加 Mac 总使用时间。
+3. **输入活动**是独立聚合指标，按分类时观察到的前台应用归属支持的 key-down 事件。
+4. **后台活动**是支持检测器的可重叠区间通道，不计入前台或网站总量。
+
+区间包含稳定 ID、本地日期键、起止时间、时长和开放状态恢复元数据。运行中的区间会原位 checkpoint；状态转换关闭旧区间并开启新区间。跨日区间按当前本地日历切分。恢复时，过期开放区间在最后一次可靠持久化的结束点关闭，不延长覆盖停机时间。每日聚合记录仍是总量的规范来源；Timeline 仅提供明细，不替代或重新计算规范聚合。
+
+### 系统事件监听与生命周期
+
+`TypingCounter` 使用 `CGEvent.tapCreate` 创建 `.listenOnly`、仅关注 key-down 的 Event Tap。CoreGraphics preflight 用于判断 Event Tap 的权限路径；IOHID 权限状态仅作诊断，不能推翻已正常运行的 tap。Event Tap 和 RunLoop 对象由专用串行队列持有。tap 超时后会重新启用；应用再次激活时会重新检查权限并尝试恢复。事件仅短暂分类，持久化边界只接收类别聚合、前台应用身份和时间戳。
+
+`AppDelegate` 在启动跟踪服务前获取基于内核的 advisory lock。竞争进程会在创建第二个 writer 前退出。正常退出时先停止接收新键盘事件，再 checkpoint，关闭后台区间并停止 IPC/Event Tap 资源。这是单机单 writer 保护，不是分布式锁或数据加密功能。
+
+### Chrome Native Messaging 与 Unix Socket IPC
+
+Manifest V3 扩展只请求 `tabs` 和 `nativeMessaging`，没有宽泛 host permission。Service Worker 只为提取主机名或有限状态（`Browser Internal`、`Local File`、`Unknown`）而临时读取活动标签页 URL。它将带长度前缀的 Chrome Native Messaging 消息发送给 stdio Host。Host 校验严格的小型 schema、清理域名 token，再通过用户级 Unix domain socket 仅转发该 token。App 会再次校验 schema 与 hostname 后才更新 `DomainTracker`。
+
+Socket 仅本机使用，位于用户 Application Support 目录，并使用受限目录和 socket 权限。没有 TCP listener、消息队列，也不由 Host 持久化域名。App 不可用时 Host 会快速拒绝，不缓存或重试 domain 事件。Host 名称、扩展 ID 和 App Bundle ID 是不同身份，必须在开发者自己的环境中协调配置。
+
+### Core Data、备份与恢复
+
+`UsageStore` 持有以代码定义的 Core Data 模型，并使用 SQLite 存储于不依赖 Bundle ID 的用户 Application Support 目录。App、网站、输入活动、Timeline 和后台记录均为聚合或区间粒度；不会持久化原始事件流。唯一性约束和规范化逻辑防止重复逻辑行被盲目累加。
+
+常规 checkpoint 每 30 秒执行一次，并在重要状态转换和退出时执行。只有保存成功后运行进度游标才会前移，因此失败保存可以重试而不丢失待写增量。恢复使用带版本的 JSON envelope，先验证数据，再创建安全备份，并在事务中替换支持的数据集；不是合并操作。备份可包含聚合数据，以及在用户选择详细备份时包含区间元数据。若不存在真实旧版 schema 数据或夹具，就没有真实迁移证据；不得将其表述为迁移通过。
+
+### 性能工程
+
+当前实现使用事件通知处理前台变化、一个共享的两秒后台检测刷新周期，以及 30 秒持久化 checkpoint。后台进程发现使用按 Bundle ID 定向的 `runningApplications(withBundleIdentifier:)` 查询，不再遍历所有应用。展示和持久化路径使用快照/图标缓存及增量累计。这些是实现选择，不是 CPU、能耗、内存或电池续航保证。性能结论需要在记录测试条件的前提下重复测量；不能仅根据源码中存在 timer 或优化代码推断基准结果。
+
+仅当所选显示模式需要实时数值时，菜单栏控制器才启用一秒刷新 timer；此刷新更新展示，不改变持久化周期。仅凭这一源码事实不能断定存在可测负载。
+
+### 本地记录类型与规范数据
+
+Core Data 中每日聚合实体包括 App 使用、Website 使用、Typing 和 per-App Typing；Timeline 实体包括 App 与 Website 区间；后台活动是独立 interval entity。唯一键分别按日期/身份/指标版本约束。网站区间只在 Chrome 父区间内有效；网站和后台时长不会加到 Mac 总量。Backup JSON 使用版本化 envelope；当前支持校验并恢复已识别的版本 1–3，当前写出版本为 v3。恢复是 Replace，不是 merge。
+
+### 迁移、界面和数据控制边界
+
+Core Data 使用推断映射进行轻量 schema migration。测试包含旧 Timeline fixture 的聚合保留，以及增加后台 interval entity 的兼容 fixture；仓库没有真实旧版生产数据库，因此真实旧库迁移不可验证。History 从每日聚合和当前运行快照派生；Hourly/session/transition analytics 是读取时计算，不另存事件流。Dashboard 隐藏技术诊断，Advanced Settings 提供诊断；用户文案来自 `Localizable.xcstrings`。备份、恢复、导出、范围删除和完整性检查属于本地数据控制路径，具体通过情况以目标 revision 的测试记录为准。

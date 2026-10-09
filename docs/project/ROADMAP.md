@@ -1,5 +1,11 @@
 # DayTrace Roadmap
 
+**Languages / 语言：** [English](#daytrace-roadmap) · [简体中文](#简体中文)
+
+> Status note: the completion statements below are historical project snapshots,
+> not proof that the current checkout has passed those validations. Verify the
+> exact revision with the procedures in [Testing](TESTING.md).
+
 ## Current status
 
 **Product Discovery: COMPLETE**
@@ -8,10 +14,10 @@
 **Internal Beta Sprint 2B Core Persistence: STABILIZED**
 **Sprint 3 Product Hardening: IMPLEMENTED — AUTOMATED REGRESSION PASSED**
 **F-008 Event Tap Lifecycle: IMPLEMENTED — REAL-MAC REGRESSION PASSED**
-**Timeline V2: IMPLEMENTED — 131 AUTOMATED TESTS PASSED; SIGNED MANUAL GATE PENDING**
+**Timeline V2: IMPLEMENTED — historical test count is recorded in Testing; signed manual gate status must be checked for the target revision**
 **Background Activity V1: IMPLEMENTED — AUTOMATED REGRESSION PASSED; REAL-APP DETECTOR GATE PENDING**
 
-Next gate: **Timeline V2 validation and independent re-review**
+Next gate: **No current release gate is asserted by this historical roadmap. See `OPEN_SOURCE_PREPARATION.md` and the test record for current blockers.**
 
 ---
 
@@ -59,8 +65,8 @@ After the spike:
 Completed in Sprint 1A/1B:
 
 - formal DayTrace Xcode project, target, scheme, module, and test names
-- production `com.wudonggua.daytrace` App identity selected; legacy identity
-  retained for migration and rollback
+- production App identity selected; legacy identity retained for migration
+  and rollback
 - stable `com.daytrace.spike` Native Messaging host identity retained
 - source baseline prepared for Git tracking
 - generated artifacts excluded from the repository
@@ -151,3 +157,38 @@ Required:
 - [ ] Resource use acceptable for all-day operation
 - [ ] Restart persistence verified
 - [ ] Export/delete behavior verified
+
+## 简体中文
+
+> 状态说明：以下完成项是历史项目快照，不代表当前 checkout 已通过相应验证。目标 revision 的实际状态应按[测试策略](TESTING.md)重新核验。
+
+### 当前方向
+
+产品探索、Technical Spike 和 Internal Beta 基础工程阶段已完成；Core Data 持久化、Timeline、Background Activity、Insights/Control、备份恢复和生产化基础设施已在代码中实现。具体是否通过测试或真实 Mac 验收，以对应 revision 的测试记录为准。公开发布前仍有开发者身份配置、Git 历史隐私、许可证选择和发布渠道等阻塞。
+
+### 阶段 1：Technical Spike
+
+- **Spike A：前台应用跟踪**——基于应用激活事件记录 bundle ID、显示名和区间；设计为排除睡眠和锁屏时长。
+- **Spike B：隐私保护的输入聚合**——通过系统权限与全局键盘事件监听做类别聚合；禁止保存输入内容；真实权限行为需在签名 Mac 上验证。
+- **Spike C：Chrome 域名与本地通信**——扩展获取活动标签域名，仅向本机传递清理结果；不保存完整 URL/标题/内容。
+- Spike 通过标准和决策见架构文档；历史 Spike 验证不能代替当前代码的回归测试。
+
+### 阶段 1.5：Internal Beta Foundation
+
+已建立正式 Xcode target/scheme、源代码 Git 基线、生成物忽略规则和架构/测试文档。历史身份迁移与 Native Messaging Host 兼容性必须谨慎维护。此阶段不代表已经开放公开分发。
+
+### 阶段 2：Internal Beta 产品工作
+
+实现内容包括：前台/睡眠/锁屏/Pause 处理、Core Data 本地聚合、输入和 Chrome 网站统计、本地日切、周期与退出 checkpoint、重启恢复、Event Tap 生命周期、History、菜单栏、登录启动、聚合导出和清空数据；后续产品面还包括比较与趋势、App/网站详情、本地搜索、固定项、分类、Timeline、后台活动、数据完整性、诊断导出、首次引导及 Replace Restore。
+
+统计边界：每日聚合是总量来源，Timeline 是明细；网站时间属于 Chrome 子项；后台活动单独记录，不加进前台总量。现有实现和手工验收状态应分别核对，不由路线图推断。
+
+仍延期或需决定的事项包括：Exclude Tracking 语义和实体级历史删除、增加其他后台检测器、贡献者身份配置、许可证及公开分发。账户、云同步和合并导入不属于本路线阶段的已承诺能力。
+
+### 阶段 2.5：Productionization 基础
+
+本阶段聚焦安装与信任基础设施：区分未签名自动化、Apple Development 和 Developer ID 分发产物；以用户级方式安装 Native Host；保留回滚；提供 Release/DMG/公证/Gatekeeper 工具。真实签名、权限、Chrome、生命周期验收必须有实际运行证据。
+
+### 阶段 3：1.0 退出门槛
+
+只有经过真实日常使用后才可进入 1.0：核心数据在长时使用中合理；没有已知重大重复计时；睡眠/锁屏/Pause 语义经过验证；没有保存输入文本；Chrome 域名隐私通过检查；中英界面经过审阅；全天资源开销可接受；重启持久化、导出和删除行为已验证。

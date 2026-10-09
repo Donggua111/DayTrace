@@ -1,156 +1,79 @@
-# DayTrace
+# DayTrace / DayTrace（中英文）
 
-DayTrace is a local-first macOS activity analytics application for tracking how the Mac is used without recording the user's actual typed content.
+**Languages / 语言：** [English](#english) · [简体中文](#简体中文)
 
-## Current stage
+## English
 
-**Technical Spike complete → Internal Beta Foundation → Sprint 3 hardening**
+DayTrace is a local-first macOS activity tracker. It summarizes foreground app use, sanitized website domains from Chrome, aggregate typing activity, and selected background activity. It is designed not to retain typed content, full URLs, page titles, or page contents.
 
-Technical Spike 01 has validated the first implementation boundary. Sprint 1A
-and 1B establish the first source-controlled, formally named engineering
-baseline without changing the validated tracking or communication behavior.
+> **Pre-release notice:** This repository is being prepared for an open-source release. It currently has no selected open-source license, and its Xcode signing/identity defaults and Git history still contain maintainer-specific identifiers. Do not redistribute binaries or treat the repository as release-ready until those items are resolved.
 
-## Validated foundation
+## What it does
 
-- macOS only
-- Native macOS app
-- App foreground usage time
-- Chrome → website/domain breakdown
-- Privacy-preserving aggregate typing keystrokes
-- Chrome Native Messaging over a user-only Unix domain socket
-- No typed content, full URL, title, or page content storage
-- Dashboard, native Settings scene, localization, and AppIcon
-- Simplified Chinese + English UI, freely switchable
-- Pause / Resume tracking
-- History views for today, yesterday, rolling seven days, week, and month
-- History usage rhythm heatmap, period comparisons, daily averages, and local summaries
-- Drill-down views for Apps and sanitized Websites, local search, pinned items, and optional App categories
-- Menu bar summary with pause/resume and display modes
-- Launch-at-login control through the native ServiceManagement API
-- Aggregate-only JSON export and an explicit delete-all-data flow
-- Versioned local backups with validate → safety backup → replace restore flow; restore never merges data
-- Detailed Timeline V2 with local app intervals and sanitized Chrome website child intervals
-- Background Activity V1 with separate interval lanes for supported NookX visible activity and NetEase audio playback
+- Tracks foreground app intervals and Chrome website time as a child of Chrome usage.
+- Counts supported keyboard categories as aggregates through a listen-only macOS event tap; it does not build a text buffer.
+- Optionally records supported NookX visible activity and NetEase audio playback as separate interval streams.
+- Stores activity locally using Core Data/SQLite. No account, cloud sync, telemetry, or public service is included.
+- Provides local history, insights, pause controls, backup/restore, and data deletion.
 
-Core Data + SQLite local persistence is part of the implemented Internal Beta
-core. Daily aggregates remain canonical for totals and analytics; Timeline V2
-adds a separate interval history for chronological detail without retaining
-raw activity events.
-
-Metadata such as pins and App categories is stored separately in UserDefaults
-and never changes usage identity or historical aggregate values. Detailed
-backups may include background interval metadata when explicitly requested;
-typed content, full URLs, page content, audio samples, window content, and
-clipboard data are not stored.
-
-Background Activity V1 is a separate interval-only stream. It never adds time
-to foreground totals, Chrome website parents, or typing metrics. NookX uses
-public visible-window metadata, while NetEase uses a public CoreAudio process
-output-running property. Detector availability is reported honestly when the
-operating system cannot provide a reliable signal; no new sensitive permission
-or private media API is used.
-
-## Repository structure
-
-```text
-DayTrace/
-├── README.md
-├── docs/
-│   ├── product/
-│   │   └── PRD.md
-│   ├── engineering/
-│   │   └── DECISIONS.md
-│   └── project/
-│       ├── ROADMAP.md
-│       └── TESTING.md
-├── prompts/
-│   └── TECHNICAL_SPIKE_01.md   # Historical spike brief
-├── app/
-│   └── DayTraceSpike/           # Transitional physical path; formal Xcode identity is DayTrace
-│       ├── DayTrace.xcodeproj
-│       ├── DayTraceSpike/       # Existing source directory; no broad directory move in Sprint 1
-│       ├── DayTraceNativeHost/
-│       └── DayTraceSpikeTests/
-├── extension/
-│   └── chrome/
-├── scripts/
-│   ├── design/
-│   └── spike/
-└── design/
-```
-
-## Repository rules
-
-- Do not create version-copy folders such as `v0.1/`, `v0.2/`, `final/`, `final2/`, or backups of the whole repository.
-- Use Git history for versioning and rollback.
-- Do not place implementation files in the repository root.
-- Do not create speculative folders that have no files/use yet.
-- Do not add cloud, authentication, payment, telemetry, or public-network services unless a future product decision explicitly requires them.
-- All user-facing UI strings must be localizable from the beginning.
-- Do not track `DerivedData`, `xcuserdata`, `.xcuserstate`, `.xcresult`, build
-  products, or `.DS_Store` files.
-
-## Stable production identities
-
-The production Mac App identity is now:
-
-```text
-Mac App bundle ID: com.wudonggua.daytrace
-Legacy Mac App bundle ID: com.daytrace.spike
-Native Messaging host: com.daytrace.spike
-```
-
-The Mac App Bundle ID and Native Messaging host name are intentionally
-independent. The legacy Bundle ID is retained only for UserDefaults migration
-and rollback compatibility. The Chrome extension ID remains
-`mmnoopahcchjobiajnhembdlipkhbjgo`.
-
-## Product Completion V1 additions
-
-The current Internal Beta baseline also includes local Product Completion V1
-foundations: pure hourly/session/transition analytics, App and Website daily
-trends, native Charts presentation, transactional replace restore, range-based
-dataset deletion, on-demand integrity checks with deterministic safe repair,
-privacy-safe diagnostic export, first-run onboarding, exact category rules, and
-presentation-only Hide Identity metadata. These additions preserve the
-accounting boundary: aggregates remain canonical, Timeline remains detail,
-Website remains a Chrome child, and Background Activity remains a separate
-overlapping stream.
-
-Restore accepts recognized backup versions 1–3 and rejects malformed, future,
-negative, non-finite, or structurally incomplete payloads before touching the
-store. Diagnostic exports contain system/subsystem health only, not activity
-history or domains. Exclude Tracking and entity-specific historical deletion
-remain deferred until their runtime semantics can be tested without ambiguity.
+See [Privacy](docs/PRIVACY.md) and [Architecture](docs/engineering/ARCHITECTURE.md) for boundaries and limitations.
 
 ## Build and test
 
-For automated unsigned validation:
+Requirements and reproducible commands are in [BUILDING.md](BUILDING.md). The app is a native Xcode project under `app/DayTraceSpike/`; the Chrome extension and Native Messaging host are separate components. A clean unsigned build is suitable for compile/test checks, but Input Monitoring and some macOS integrations require a correctly signed app and manual OS authorization.
 
-```text
-xcodebuild -project app/DayTraceSpike/DayTrace.xcodeproj \
-  -scheme DayTrace -configuration Debug \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+## Repository map
 
-xcodebuild -project app/DayTraceSpike/DayTrace.xcodeproj \
-  -scheme DayTrace -configuration Debug \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO test
-```
+- `app/DayTraceSpike/DayTrace.xcodeproj` — macOS app, Native Messaging host, and XCTest targets
+- `extension/chrome/` — Manifest V3 extension
+- `scripts/` — development installation, native-host, and release helpers
+- `docs/` — product, engineering, testing, and release notes
+- `design/` — source design assets
 
-Manual Input Monitoring verification must use an Apple Development-signed
-Xcode Run build. An unsigned automation artifact is not a valid permission
-runtime.
+## Project status
 
-## Productionization V1 foundation
+DayTrace is under active development. Interfaces, data formats, and supported detectors may change. See [ROADMAP.md](docs/project/ROADMAP.md) for the current direction. The project does not yet grant permission to use, modify, or redistribute the code; a license decision is pending.
 
-Production tooling now distinguishes unsigned automation builds, Apple
-Development installed builds, and Developer ID distribution builds. The
-production Mac App Bundle ID is `com.wudonggua.daytrace`; the legacy identity
-`com.daytrace.spike` remains the UserDefaults migration source. The user-level
-Core Data and backup locations are Bundle-ID independent, and the migration
-seam preserves existing production values and keeps the old store.
+## Contributing and security
 
-Use `scripts/install-development.sh` for a deliberate stable user-level app
-install, and `scripts/release/` for Release, DMG, notarization, and Gatekeeper
-tooling. See [PRODUCTIONIZATION.md](docs/release/PRODUCTIONIZATION.md) and the
-[release checklist](docs/release/RELEASE_CHECKLIST.md).
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes. For vulnerability reports, see [SECURITY.md](SECURITY.md). Do not include databases, backups, screenshots containing personal activity, signing credentials, or raw keyboard data in issues or pull requests.
+
+## License
+
+No open-source license has been selected. Until a license is added, all rights are reserved by default; please do not assume that the code may be redistributed or reused. The maintainer will add a license after choosing one.
+
+## 简体中文
+
+DayTrace 是一款以本地处理为主的 macOS 活动统计应用，汇总前台应用使用时间、Chrome 网站域名、聚合键盘活动，以及部分后台活动。它不保存输入文本、完整 URL、网页标题或网页内容。
+
+> **发布前提示：** 项目仍在准备开源发布，尚未选定开源许可证。Xcode 签名/身份默认值和 Git 历史中仍有维护者环境标识。相关问题解决前，请勿将项目视为可直接再分发的开源项目。
+
+### 功能概览
+
+- 记录前台应用区间；Chrome 网站时间作为 Chrome 使用时间的子项。
+- 通过 listen-only macOS 事件监听按类别聚合支持的键盘事件，不构建文本缓冲区。
+- 可选记录 NookX 可见活动和 NetEase 音频播放的独立区间。
+- 使用 Core Data/SQLite 在本机存储；项目不包含账户、云同步、遥测或公共服务。
+- 提供本地历史、洞察、暂停控制、备份/恢复和数据删除。
+
+请阅读[隐私说明](docs/PRIVACY.md)和[架构说明](docs/engineering/ARCHITECTURE.md)，了解数据边界和当前限制。
+
+### 构建、测试与仓库导航
+
+环境要求和可复制的命令见[构建指南](BUILDING.md)。原生 App、Chrome 扩展和 Native Messaging Host 是独立组件。未签名构建适合编译和自动化测试；Input Monitoring 等 macOS 集成需要合适的签名和人工系统授权。
+
+- `app/DayTraceSpike/DayTrace.xcodeproj`：macOS App、Native Messaging Host 与 XCTest 工程
+- `extension/chrome/`：Manifest V3 扩展
+- `scripts/`：开发安装、Native Host 和发布辅助脚本
+- `docs/`：产品、工程、测试和发布说明
+- `design/`：设计源文件
+
+### 项目状态、贡献与安全
+
+项目仍在开发中，界面、数据格式和支持的检测器可能变化。当前方向见[路线图](docs/project/ROADMAP.md)。项目尚未授予使用、修改或再分发代码的许可；许可证待维护者决定。
+
+贡献前请阅读[贡献指南](CONTRIBUTING.md)。漏洞报告方式见[安全策略](SECURITY.md)。请勿在 issue 或 PR 中附带数据库、备份、包含个人活动的截图、签名凭据或原始键盘数据。
+
+### 许可证
+
+项目尚未选定开源许可证，也未包含 `LICENSE` 文件。在添加许可证前，默认保留全部权利；请勿假设代码可以复用或再分发。维护者作出选择后会添加许可证文件。

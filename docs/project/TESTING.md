@@ -1,5 +1,7 @@
 # DayTrace Testing Strategy
 
+**Languages / 语言：** [English](#daytrace-testing-strategy) · [简体中文](#简体中文)
+
 This file defines how product behavior is verified. Add regression tests when real bugs are found.
 
 ---
@@ -211,9 +213,8 @@ Expected:
 
 ### T-WEB-004 — Native Messaging discovery and website attribution
 1. Open `chrome://extensions` with Developer Mode enabled.
-2. Confirm the DayTrace extension ID is
-   `mmnoopahcchjobiajnhembdlipkhbjgo` and that it matches the installed Native
-   Messaging `allowed_origins` value.
+2. Confirm the extension ID shown by Chrome exactly matches the installed
+   Native Messaging `allowed_origins` value.
 3. Reload the extension and open its Service Worker console.
 4. Confirm there is no `Specified native messaging host not found` error.
 5. Open DayTrace and confirm IPC status becomes Connected.
@@ -252,7 +253,7 @@ that the raw preference value persists.
 
 ### Final stabilization manual regressions
 
-#### T-KEY-004 — Event Tap lifecycle and relaunch
+#### T-KEY-005 — Event Tap lifecycle quick regression
 1. Launch the Apple Development-signed DayTrace build with Input Monitoring
    already authorized.
 2. Type a short known-count sample and confirm the count increases once.
@@ -510,10 +511,9 @@ it does not print or persist key details.
 
 The automated build may use `CODE_SIGNING_ALLOWED=NO` for compile and XCTest
 validation only. It is not a valid human Input Monitoring runtime. Manual
-permission and typing tests must launch the Apple Development-signed app from
-Xcode Run with the production bundle identifier `com.wudonggua.daytrace`.
-The legacy `com.daytrace.spike` identity is retained only for migration and
-rollback compatibility.
+permission and typing tests must launch an Apple Development-signed app from
+Xcode Run using the developer's configured bundle identifier. The legacy
+development identity is retained only for migration and rollback compatibility.
 
 ## 6. Insights & Control smoke test
 
@@ -541,7 +541,12 @@ rollback compatibility.
 
 ## 7. Timeline V2 automated coverage
 
-The current XCTest suite contains 131 tests and covers:
+The historical Timeline V2 validation snapshot reported 131 passing tests at
+that time. The current source contains 142 XCTest test-method declarations;
+this count is an inventory, not a claim that the current suite has been run or
+passed. Execute the commands in [BUILDING.md](../../BUILDING.md) and record the
+actual result for the exact revision under review. The historical coverage
+areas included:
 
 - positive/invalid interval validation and exact local-midnight splitting;
 - stable interval IDs across checkpoints, live projection reconciliation, and
@@ -583,7 +588,7 @@ the genuine pre-Timeline fixture is the available migration evidence, while a
 real old-store migration run is recorded as not available rather than
 fabricated.
 
-## 8. Product Completion V1 automated coverage
+## 9. Product Completion V1 automated coverage
 
 The additional tests cover:
 
@@ -593,7 +598,7 @@ The additional tests cover:
 - dataset-specific range deletion preserving unselected activity;
 - healthy-store Integrity reporting and the existing migration fixtures.
 
-## 9. Product Completion V1 manual smoke test
+## 10. Product Completion V1 manual smoke test
 
 1. In History, open a selected day and confirm Activity insights shows hourly
    bars, session count, average/longest session, and descriptive App switches.
@@ -617,9 +622,9 @@ The additional tests cover:
 Manual GUI validation remains pending for signed Input Monitoring/TCC, real
 Chrome discovery, menu bar refresh, Timeline visual behavior, restore Finder
 picker, VoiceOver, timezone changes, and real detector behavior. These pending
-checks do not replace the 131-test automated gate.
+checks do not replace running the full XCTest suite on the revision under review.
 
-## Productionization V1 checks
+## 11. Productionization V1 checks
 
 Run `zsh -n` on all repository shell scripts and execute
 `scripts/spike/test-native-host-config.sh`. For local release tooling, use
@@ -628,3 +633,49 @@ automation artifact path; that artifact is **NOT FOR DISTRIBUTION**. A signed
 Development build is required for Input Monitoring and real-Mac lifecycle
 validation. Notarization is pending until an existing `notarytool` Keychain
 profile is available.
+
+## 简体中文
+
+本文件列出确定性 XCTest 与必须在真实 macOS/Chrome 上完成的人工验收。测试目标会加载 DayTrace App；运行完整 XCTest 前应确认不会与正在运行的正式单实例冲突，并确保测试 store 与个人生产数据库隔离。当前源码有 142 个 XCTest 测试方法声明；这是源码盘点，不是“测试已通过”的结论。历史 Timeline V2 的 131 项通过数仅代表当时快照。每次都应记录精确 revision、命令和实际结果。
+
+### 自动化测试范围
+
+自动化覆盖区间校验与本地午夜拆分、前台非重叠、网站嵌套、输入类别聚合、日期聚合、持久化幂等性、保存失败重试、Timeline/后台记录恢复、备份校验与 Replace Restore、按范围删除、完整性报告、Event Tap 生命周期状态机、进程查询和隐私边界。自动化结果不能替代系统权限、Chrome Native Messaging、窗口显示或真实睡眠/锁屏行为的人工测试。
+
+### 前台、系统状态和持久化
+
+- **T-APP-001：** Chrome 与 VS Code 轮流前台；各自时长应合理且区间不重叠。
+- **T-APP-002/003：** 睡眠或锁屏期间不计入前台使用。
+- **T-APP-004：** 锁屏后睡眠并唤醒但暂不解锁；锁定时长不计入、不出现 `loginwindow`，仅解锁后重新开始新区间。
+- **T-APP-005 / T-TIME-004：** 修改时区/系统时间后旧区间只关闭一次，新区间按新本地日历锚定；不能出现巨量跳变或重复。
+- **T-PERSIST-004：** 生成 App、Website、Typing 数据，等待超过一个 checkpoint，正常退出并重启；当日数值保留，继续使用时从已有值递增，不重复计数。
+- **Sprint 2B：** 检查跨午夜拆分、暂停期间不累计、重复 checkpoint 不增加数据、失败保存后重试不重复、网站保持 Chrome 子项及中英切换不重置指标。
+
+### 输入与权限
+
+- **T-KEY-001：** 输入 100 个受支持英文字符键/数字/符号/空格，检查总量和对应类别精确增加 100。
+- **T-KEY-002：** 只按 Shift、Command、Control、Option、Caps Lock 等修饰键，不增加输入统计。
+- **T-KEY-003：** 检查日志和持久化数据没有文本、逐键历史或重建内容。
+- **T-KEY-004：** 使用 Apple Development 签名并授权 Input Monitoring；正常退出/重启多次，Event Tap 运行且不挂起、不崩溃、不重复计数。此测试需要真实授权。
+- **Sprint 2A：** 分别检查支持/忽略的键、输入速度和会话、按 App 聚合、中文 IME 不冒称计入、隐私说明和运行时中英切换。
+
+### Chrome 与 IPC
+
+- **T-WEB-001/002：** 活动 HTTPS 标签在 Chrome 前台时只报告清理后的 hostname；切换域名时关闭旧区间并开启新域名。
+- **T-WEB-003：** Chrome 父区间包含网站子区间；网站时间不能再次增加 Mac 总使用时间。
+- **T-WEB-004：** Chrome 扩展 ID 必须与 Native Host manifest 的 `allowed_origins` 一致；重载后 Service Worker 不报 host-not-found；诊断显示连接状态，网站只显示清理域名。
+- 静态 host 验证与 Native Host 验证脚本只用合成数据；不得把 URL/path/query/title/content 传过 IPC。
+
+### UI、后台活动与数据控制
+
+- **产品 UI：** Dashboard 优先显示今日总量、运行/暂停、App 排名、输入统计和网站；不显示 Bundle ID 或诊断。检查设置、Advanced Diagnostics 默认折叠及 Follow System/简体中文/English 切换。
+- **Background Activity：** NookX 可见窗口和 NetEase CoreAudio 输出信号作为独立 lane；锁屏/睡眠/Pause 时停止，不增加前台/网站/输入总量。信号不可用时应诚实标记 unavailable。
+- **History/Insights：** 检查日期范围、汇总和趋势与 Dashboard 聚合一致，网站不增加总量，搜索/固定/分类只改展示元数据。
+- **导出与删除：** 仅用可丢弃测试数据。聚合导出不含文本/键码/完整 URL；删除全部后历史清空且可在同一进程重新开始。
+- **备份/恢复：** Back Up Now 生成有效本地 JSON；Restore 先显示摘要、创建安全备份，再以 Replace 语义恢复；检查无部分文件和无意外合并。
+- **Timeline：** 顺序、父子关系、跨午夜拆分、锁屏睡眠关闭、重启恢复、关闭详细记录以及仅删 Timeline 不删聚合。
+- **完整性/诊断：** 健康检查不得伪修聚合；自动修复仅关闭 stale open intervals。诊断导出只包含健康/计数元数据，不含活动明细或个人路径。
+
+### 生产化检查
+
+对所有 shell 脚本运行 `zsh -n`，并运行 Native Host 静态配置检查。`--allow-unsigned` 只验证本地自动化产物路径，不可分发，也不能验证 Input Monitoring。Developer ID、公证、staple 和 Gatekeeper 必须逐项实际验证。真实旧 schema store 不存在时，迁移结果记为“不可用”，不能伪造通过。
