@@ -22,3 +22,8 @@
 *.sqlite-shm
 *.db
 *.daytrace-backup.json
+# Private development material; public technical documentation belongs in docs/.
+/prompts/
+/.codex/
+/.agents/
+*.prompt.md
