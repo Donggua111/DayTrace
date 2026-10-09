@@ -24,15 +24,22 @@ publication. Last reviewed against the local tree on 2026-10-09.
 
 - [x] App Bundle ID, signing Team, and Chrome extension ID accept build-time
   overrides while preserving production defaults.
-- Git history contains the maintainer's personal email in all 15 commits. Do
-  not push publicly unless the owner explicitly approves history rewriting or
-  accepts this exposure. No private key or high-confidence service-token
-  pattern was found in the inspected history; no dedicated secret scanner ran.
-- Confirm whether historical planning prompts and release notes should remain
-  in the public source tree.
-- Establish a public security contact and supported-version/response policy.
-- Run XCTest when the installed DayTrace app is safely stopped; the test target
-  loads the app executable and the app has a single-writer runtime guard.
+- [x] The publishable branch history uses the maintainer's exact GitHub
+  noreply address for both author and committer. The metadata rewrite preserved
+  commit subjects, dates, and tree contents. A pre-rewrite Git bundle is
+  retained locally for recovery and must not be published.
+- A repository/history scan found no private-key material, high-confidence
+  token patterns, or tracked user databases/backups. No dedicated secret
+  scanner was available, so this is not a guarantee that all possible secrets
+  were detected.
+- Historical planning prompts and release notes remain in the source tree;
+  the owner should make a final content decision before public launch.
+- A concrete private vulnerability-reporting channel and supported-version /
+  response policy are still needed. `SECURITY.md` currently describes the
+  intended handling but does not provide an actionable private contact route.
+- [x] Isolated XCTest passed (143/143); Debug and Release app builds and both
+  Native Host configurations built successfully. Tests used a temporary data
+  root and test identity, not the installed production app or its database.
 
 License: MPL-2.0. See [LICENSE](../../LICENSE).
 
@@ -53,9 +60,10 @@ License: MPL-2.0. See [LICENSE](../../LICENSE).
 ### 安全公开推送前仍需处理
 
 - [x] App Bundle ID、签名 Team 和 Chrome 扩展 ID 可按构建覆盖，且保留正式默认值。
-- Git 历史 15 个提交都包含维护者个人邮箱。未经明确授权重写历史或接受该暴露前，不应公开推送。历史中未发现私钥或高置信度 token 模式；未运行专用 secret scanner。
-- 决定是否将历史计划提示词和发布说明保留在公开源码中。
-- 建立公开安全联系渠道及受支持版本/响应政策。
-- 在安全停止已安装 DayTrace 后运行 XCTest；当前测试 target 会加载 App 可执行文件，而 App 有单 writer 运行时保护。
+- [x] 可发布分支的全部历史已统一使用维护者提供的 GitHub noreply 地址作为 Author 和 Committer。元数据改写保留了提交说明、日期和 tree 内容。本地保留了改写前的 Git bundle 以供恢复，不得公开推送该备份。
+- 仓库/历史扫描未发现私钥材料、高置信度 token 模式或被跟踪的用户数据库/备份。未运行专用 secret scanner，因此不能保证发现所有可能的秘密。
+- 历史计划提示词和发布说明仍在源码树中，公开发布前仍需所有者做最终内容确认。
+- 仍需建立可实际使用的私密漏洞报告渠道，以及受支持版本/响应政策。当前 `SECURITY.md` 描述了处理原则，但没有可操作的私密联系途径。
+- [x] 隔离 XCTest 通过（143/143）；Debug、Release App 及 Native Host 的 Debug/Release 构建均成功。测试使用临时数据目录和测试身份，没有使用已安装正式 App 或其数据库。
 
 许可证：MPL-2.0，见根目录 [LICENSE](../../LICENSE)。
