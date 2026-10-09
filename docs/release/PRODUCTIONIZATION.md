@@ -11,9 +11,11 @@ compatibility. Chrome extension IDs are assigned/configured per development
 profile and must not be shared as a project constant.
 
 The current identity map is maintained in `scripts/daytrace-identity.sh` and
-mirrored by `DayTraceIdentity` for diagnostics and migration helpers. Its
-maintainer-specific values must be moved to contributor-owned configuration
-before a public release.
+mirrored by `DayTraceIdentity` for diagnostics and migration helpers. Build-time
+overrides are documented in `BUILDING.md`; defaults preserve the established
+production Bundle ID, Team, and extension ID. Changing the Bundle ID creates a
+different TCC identity and must not replace an existing install without an
+intentional migration.
 
 ## Artifact classes
 
@@ -86,7 +88,7 @@ PASS is inferred from static inspection.
 
 ### 当前身份配置
 
-生产 App Bundle ID 由维护者配置；旧开发 Bundle ID 用作 UserDefaults 迁移来源和回滚身份。Native Messaging Host 名称 `com.daytrace.spike` 为兼容性保留。Chrome 扩展 ID 属于各自开发 profile，不应作为共享项目身份。当前身份映射仍包含维护者专属默认值，公开发布前必须改为贡献者本地配置。
+生产 App Bundle ID 默认保持既有 `com.wudonggua.daytrace`；旧开发 Bundle ID 用作 UserDefaults 迁移来源和回滚身份。Native Messaging Host 名称 `com.daytrace.spike` 为兼容性保留。Team、App Bundle ID 和 Chrome 扩展 ID 可按构建覆盖；改变 Bundle ID 会形成不同 TCC 身份，不应未经迁移计划替换正式安装。
 
 ### 构建产物类别
 

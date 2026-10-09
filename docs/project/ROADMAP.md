@@ -164,7 +164,7 @@ Required:
 
 ### 当前方向
 
-产品探索、Technical Spike 和 Internal Beta 基础工程阶段已完成；Core Data 持久化、Timeline、Background Activity、Insights/Control、备份恢复和生产化基础设施已在代码中实现。具体是否通过测试或真实 Mac 验收，以对应 revision 的测试记录为准。公开发布前仍有开发者身份配置、Git 历史隐私、许可证选择和发布渠道等阻塞。
+产品探索、Technical Spike 和 Internal Beta 基础工程阶段已完成；Core Data 持久化、Timeline、Background Activity、Insights/Control、备份恢复和生产化基础设施已在代码中实现。具体是否通过测试或真实 Mac 验收，以对应 revision 的测试记录为准。公开发布前仍需处理 Git 历史隐私、发布渠道和安全联系信息。
 
 ### 阶段 1：Technical Spike
 

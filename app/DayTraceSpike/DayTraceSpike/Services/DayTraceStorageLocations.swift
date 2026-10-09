@@ -9,7 +9,11 @@ enum DayTraceStorageLocations {
     }
 
     static var rootDirectory: URL {
-        applicationSupportDirectory.appendingPathComponent("DayTrace", isDirectory: true)
+        if let isolatedRoot = ProcessInfo.processInfo.environment["DAYTRACE_APP_DATA_ROOT"],
+           isolatedRoot.hasPrefix("/") {
+            return URL(fileURLWithPath: isolatedRoot, isDirectory: true).standardizedFileURL
+        }
+        return applicationSupportDirectory.appendingPathComponent("DayTrace", isDirectory: true)
     }
 
     static var storeURL: URL {

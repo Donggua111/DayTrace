@@ -1,4 +1,5 @@
 import XCTest
+import Darwin
 @testable import DayTrace
 
 @MainActor
@@ -2692,7 +2693,11 @@ final class DayTraceTests: XCTestCase {
         XCTAssertEqual(DayTraceIdentity.legacyBundleIdentifier, "com.daytrace.spike")
         XCTAssertEqual(DayTraceIdentity.productionBundleIdentifier, "com.wudonggua.daytrace")
         XCTAssertEqual(DayTraceIdentity.nativeMessagingHostName, "com.daytrace.spike")
-        XCTAssertEqual(DayTraceIdentity.chromeExtensionIdentifier, "mmnoopahcchjobiajnhembdlipkhbjgo")
+        XCTAssertEqual(
+            DayTraceIdentity.chromeExtensionIdentifier,
+            Bundle.main.object(forInfoDictionaryKey: "DayTraceChromeExtensionIdentifier") as? String
+                ?? "mmnoopahcchjobiajnhembdlipkhbjgo"
+        )
 
         let version = DayTraceIdentity.versionInfo(from: [
             "CFBundleShortVersionString": "0.9.0",
@@ -2813,6 +2818,25 @@ final class DayTraceTests: XCTestCase {
 
         XCTAssertTrue(first.acquire())
         XCTAssertFalse(second.acquire())
+    }
+
+    func testStorageRootUsesExplicitIsolatedDataDirectory() {
+        let key = "DAYTRACE_APP_DATA_ROOT"
+        let priorValue = getenv(key).map { String(cString: $0) }
+        let isolatedRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("DayTraceIsolatedData-\(UUID().uuidString)", isDirectory: true)
+            .standardizedFileURL
+        setenv(key, isolatedRoot.path, 1)
+        defer {
+            if let priorValue {
+                setenv(key, priorValue, 1)
+            } else {
+                unsetenv(key)
+            }
+        }
+
+        XCTAssertEqual(DayTraceStorageLocations.rootDirectory, isolatedRoot)
+        XCTAssertEqual(DayTraceStorageLocations.storeURL.deletingLastPathComponent(), isolatedRoot)
     }
 }
 

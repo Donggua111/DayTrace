@@ -127,10 +127,10 @@ The Native Messaging host name is a protocol identity shared by the Chrome
 service worker and the generated user-level host manifest. A contributor's
 unpacked Chrome extension ID is profile/package-specific and must be configured
 for that developer; it must not be copied from another user's profile. The app
-Bundle ID is also tied to the developer's signing/TCC identity. The current
-project still has maintainer-specific identity defaults, which are an explicit
-open-source preparation item and must be replaced with contributor-neutral
-configuration before a public release. See [BUILDING.md](../../BUILDING.md).
+Bundle ID is also tied to the developer's signing/TCC identity. Existing
+production identity defaults are retained for compatibility, with build-time
+overrides available for app Bundle ID, signing Team, and extension ID. Changing
+the Bundle ID creates a distinct TCC identity. See [BUILDING.md](../../BUILDING.md).
 
 ## Foreground usage
 

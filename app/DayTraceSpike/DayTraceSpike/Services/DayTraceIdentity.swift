@@ -9,7 +9,9 @@ enum DayTraceIdentity {
     static let legacyBundleIdentifier = "com.daytrace.spike"
     static let productionBundleIdentifier = "com.wudonggua.daytrace"
     static let nativeMessagingHostName = "com.daytrace.spike"
-    static let chromeExtensionIdentifier = "mmnoopahcchjobiajnhembdlipkhbjgo"
+    static let chromeExtensionIdentifier = Bundle.main.object(
+        forInfoDictionaryKey: "DayTraceChromeExtensionIdentifier"
+    ) as? String ?? "mmnoopahcchjobiajnhembdlipkhbjgo"
     static let identityMigrationVersion = 1
 
     static var activeBundleIdentifier: String {

@@ -7,3 +7,18 @@
 /release/
 /dist/
 .DS_Store
+# Local signing/configuration secrets and per-machine Xcode overrides.
+*.local.xcconfig
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+*.mobileprovision
+# User activity stores and exports must never enter source control.
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.daytrace-backup.json

@@ -36,13 +36,24 @@ The XCTest target loads the DayTrace app executable as its test host. Quit any i
 
 ## Signing and permission-dependent behavior
 
-An unsigned build can verify compilation and deterministic tests, but it is not evidence that Input Monitoring or TCC identity works. To manually test keyboard counting, build and run with a stable Apple Development identity selected in Xcode, then grant Input Monitoring in macOS System Settings. The project currently has maintainer-specific signing/identity settings; a contributor must not use the maintainer's identity. Open-source release preparation must replace those defaults with documented, contributor-owned configuration before declaring the setup turnkey.
+An unsigned build can verify compilation and deterministic tests, but it is not evidence that Input Monitoring or TCC identity works. To manually test keyboard counting, use your own stable Apple Development identity, then grant Input Monitoring in macOS System Settings. The checked-in defaults preserve the existing production Bundle ID, Team, and Chrome extension ID; override them per build without source edits:
+
+```sh
+xcodebuild -project app/DayTraceSpike/DayTrace.xcodeproj \
+  -scheme DayTrace -configuration Debug \
+  DAYTRACE_APP_BUNDLE_ID=com.example.daytrace \
+  DAYTRACE_DEVELOPMENT_TEAM=YOURTEAMID \
+  DAYTRACE_CHROME_EXTENSION_ID=yourunpackedextensionid \
+  build
+```
+
+Changing the Bundle ID creates a separate macOS/TCC identity. Existing production installs continue to use `com.wudonggua.daytrace` unless explicitly overridden.
 
 Do not request Accessibility, Full Disk Access, Screen Recording, or other permissions as a workaround. The keyboard listener is listen-only.
 
 ## Chrome extension and Native Messaging
 
-Load `extension/chrome/` as an unpacked extension from `chrome://extensions`. The Native Messaging host name expected by the service worker is `com.daytrace.spike`. Chrome assigns an extension ID based on its package/key or unpacked development profile; the user-level native-host manifest must allow the ID of the extension being tested. The checked-in installer currently contains a maintainer-specific extension ID restriction and needs contributor-neutral configuration before this workflow is independently usable. Do not add broad host permissions or change the local Unix socket architecture.
+Load `extension/chrome/` as an unpacked extension from `chrome://extensions`. Set `DAYTRACE_CHROME_EXTENSION_ID` to its ID before running the development installer. The Native Messaging host name remains `com.daytrace.spike`, independent of both the extension ID and app Bundle ID. Do not add broad host permissions or change the local Unix socket architecture.
 
 Never install the native host system-wide. The supported development flow is user-level and must use an absolute executable path in the generated manifest.
 
@@ -71,13 +82,13 @@ XCTest target 会加载 DayTrace App 可执行文件作为测试宿主。运行�
 
 ### 签名和权限相关行为
 
-未签名构建可用于编译和确定性测试，但不能证明 Input Monitoring 或 TCC 身份正常。人工测试键盘计数时，应在 Xcode 中使用开发者自己的稳定 Apple Development 签名，并在 macOS“系统设置”中授予 Input Monitoring。当前工程仍含维护者专属身份配置；贡献者不得使用维护者的签名身份。公开发布前需改为开发者自行配置，并完善相应说明。
+未签名构建可用于编译和确定性测试，但不能证明 Input Monitoring 或 TCC 身份正常。人工测试键盘计数时，应使用开发者自己的稳定 Apple Development 签名，并在 macOS“系统设置”中授予 Input Monitoring。工程默认保留现有正式 Bundle ID、Team 和 Chrome 扩展 ID；可使用 `DAYTRACE_APP_BUNDLE_ID`、`DAYTRACE_DEVELOPMENT_TEAM`、`DAYTRACE_CHROME_EXTENSION_ID` 按构建覆盖。改变 Bundle ID 会创建新的 macOS/TCC 身份；未覆盖时正式安装身份仍为 `com.wudonggua.daytrace`。
 
 不要以 Accessibility、Full Disk Access、Screen Recording 或其他权限作为绕过方案；键盘监听必须保持 listen-only。
 
 ### Chrome 扩展与 Native Messaging
 
-在 `chrome://extensions` 打开开发者模式，并加载 `extension/chrome/`。Service Worker 使用的 Native Messaging Host 名称是 `com.daytrace.spike`。Chrome 为本地扩展分配 ID，用户级 Native Messaging manifest 的 `allowed_origins` 必须与当前扩展 ID 完全一致。现有安装脚本仍限制为维护者的扩展 ID；在该流程改为贡献者可配置前，它不能视为开箱即用。不要增加宽泛 host permissions，也不要改变本地 Unix socket 架构。
+在 `chrome://extensions` 打开开发者模式并加载 `extension/chrome/`。运行开发安装脚本前，将 `DAYTRACE_CHROME_EXTENSION_ID` 设为当前扩展 ID；用户级 Native Messaging manifest 会使用该值。Host 名称仍固定为 `com.daytrace.spike`，与 App Bundle ID 和 Extension ID 相互独立。不要增加宽泛 host permissions，也不要改变本地 Unix socket 架构。
 
 Native Host 只能按用户级方式安装，生成的 manifest 必须使用可执行文件的绝对路径；禁止 system-wide 安装。
 

@@ -6,7 +6,7 @@
 
 DayTrace is a local-first macOS activity tracker. It summarizes foreground app use, sanitized website domains from Chrome, aggregate typing activity, and selected background activity. It is designed not to retain typed content, full URLs, page titles, or page contents.
 
-> **Pre-release notice:** This repository is being prepared for an open-source release. It currently has no selected open-source license, and its Xcode signing/identity defaults and Git history still contain maintainer-specific identifiers. Do not redistribute binaries or treat the repository as release-ready until those items are resolved.
+> **Release notice:** Source code is licensed under [MPL-2.0](LICENSE). Public release readiness still depends on reviewing Git history for maintainer metadata and completing a clean public-repository build audit.
 
 ## What it does
 
@@ -32,7 +32,7 @@ Requirements and reproducible commands are in [BUILDING.md](BUILDING.md). The ap
 
 ## Project status
 
-DayTrace is under active development. Interfaces, data formats, and supported detectors may change. See [ROADMAP.md](docs/project/ROADMAP.md) for the current direction. The project does not yet grant permission to use, modify, or redistribute the code; a license decision is pending.
+DayTrace is under active development. Interfaces, data formats, and supported detectors may change. See [ROADMAP.md](docs/project/ROADMAP.md) for the current direction. Source licensing is governed by [MPL-2.0](LICENSE); the license does not grant rights to DayTrace trademarks or third-party materials.
 
 ## Contributing and security
 
@@ -40,13 +40,13 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing changes. For vul
 
 ## License
 
-No open-source license has been selected. Until a license is added, all rights are reserved by default; please do not assume that the code may be redistributed or reused. The maintainer will add a license after choosing one.
+DayTrace source code is available under the [Mozilla Public License 2.0](LICENSE). Third-party components, Apple frameworks, Chrome APIs, and trademarks remain subject to their own terms.
 
 ## 简体中文
 
 DayTrace 是一款以本地处理为主的 macOS 活动统计应用，汇总前台应用使用时间、Chrome 网站域名、聚合键盘活动，以及部分后台活动。它不保存输入文本、完整 URL、网页标题或网页内容。
 
-> **发布前提示：** 项目仍在准备开源发布，尚未选定开源许可证。Xcode 签名/身份默认值和 Git 历史中仍有维护者环境标识。相关问题解决前，请勿将项目视为可直接再分发的开源项目。
+> **发布提示：** DayTrace 源码采用 [MPL-2.0](LICENSE)。公开发布前仍需审查 Git 历史中的维护者元数据，并完成干净公开仓库构建审计。
 
 ### 功能概览
 
@@ -70,10 +70,10 @@ DayTrace 是一款以本地处理为主的 macOS 活动统计应用，汇总前�
 
 ### 项目状态、贡献与安全
 
-项目仍在开发中，界面、数据格式和支持的检测器可能变化。当前方向见[路线图](docs/project/ROADMAP.md)。项目尚未授予使用、修改或再分发代码的许可；许可证待维护者决定。
+项目仍在开发中，界面、数据格式和支持的检测器可能变化。当前方向见[路线图](docs/project/ROADMAP.md)。源码使用 [MPL-2.0](LICENSE)；该许可证不授予 DayTrace 商标或第三方材料的权利。
 
 贡献前请阅读[贡献指南](CONTRIBUTING.md)。漏洞报告方式见[安全策略](SECURITY.md)。请勿在 issue 或 PR 中附带数据库、备份、包含个人活动的截图、签名凭据或原始键盘数据。
 
 ### 许可证
 
-项目尚未选定开源许可证，也未包含 `LICENSE` 文件。在添加许可证前，默认保留全部权利；请勿假设代码可以复用或再分发。维护者作出选择后会添加许可证文件。
+DayTrace 源码采用 [Mozilla 公共许可证 2.0](LICENSE)。第三方组件、Apple 框架、Chrome API 和商标仍受各自条款约束。

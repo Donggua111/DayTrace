@@ -2,7 +2,7 @@
 
 **Languages / 语言：** [English](#contributing) · [简体中文](#简体中文)
 
-Thanks for your interest in DayTrace. The project is still preparing for its first public contribution process; a license is pending, so please do not submit contributions until the maintainer adds one and confirms the contribution terms.
+Thanks for your interest in DayTrace. Contributions to project source are governed by MPL-2.0. By submitting a contribution, you agree that it may be distributed under that license; no separate CLA is currently required.
 
 ## Before proposing a change
 
@@ -21,11 +21,11 @@ Open a focused issue or pull request with the motivation, behavior change, priva
 
 ## License and contribution terms
 
-No project license or contributor agreement has been selected. Until that decision is made and published, the repository is not accepting reusable contributions under an open-source grant.
+Project source is licensed under MPL-2.0; see [LICENSE](LICENSE). No separate contributor license agreement is currently used. Contributions must be submitted with the right to license them under MPL-2.0.
 
 ## 简体中文
 
-感谢你关注 DayTrace。项目仍在准备首次公开贡献流程，许可证尚待决定；在维护者添加许可证并确认贡献条款前，请勿提交希望以开源方式复用或再分发的贡献。
+感谢你关注 DayTrace。项目源码采用 MPL-2.0。提交贡献即表示你同意该贡献可按此许可证分发；目前不要求单独签署 CLA。
 
 ### 提交变更前
 
@@ -44,4 +44,4 @@ No project license or contributor agreement has been selected. Until that decisi
 
 ### 许可证与贡献条款
 
-项目尚未选定许可证或贡献者协议。在决定并发布相关条款前，仓库尚未按开源许可接受可再利用的贡献。
+项目源码采用 MPL-2.0，详见 [LICENSE](LICENSE)。目前没有单独的贡献者许可协议；提交者须有权按 MPL-2.0 授权其贡献。
